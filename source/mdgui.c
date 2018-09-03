@@ -2,8 +2,6 @@
 
 pthread_mutex_t MDGUI__mutex;
 
-bool MDGUI__needs_redraw = false;
-
 void MDGUI__clear_screen () {
 
     clear();
@@ -29,7 +27,7 @@ MDGUI__terminal MDGUI__get_terminal_information () {
     return tinfo;
 }
 
-void MDGUI__wait_for_keypress (bool (key_pressed)(char [3]), void (on_needs_redraw)(void)) {
+void MDGUI__wait_for_keypress (bool (key_pressed)(char [3]), void (on_completion)(void)) {
 
     struct termios orig_term_attr;
     struct termios new_term_attr;
@@ -53,7 +51,7 @@ void MDGUI__wait_for_keypress (bool (key_pressed)(char [3]), void (on_needs_redr
 
         int readn = select(1, &input_set, NULL, NULL, NULL);
 
-        if (FD_ISSET(STDIN_FILENO, &input_set))
+        if (FD_ISSET (STDIN_FILENO, &input_set))
         {
             int buffread = read(STDIN_FILENO, buff, 3);
 
@@ -61,7 +59,15 @@ void MDGUI__wait_for_keypress (bool (key_pressed)(char [3]), void (on_needs_redr
         }
     }
 
+    on_completion ();
+
     tcsetattr (fileno (stdin), TCSANOW, &orig_term_attr);
+
+    clear ();
+
+    curs_set (1);
+
+    endwin();
 
     return;
 }

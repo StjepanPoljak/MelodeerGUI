@@ -21,7 +21,7 @@ typedef enum MDGUI__component MDGUI__component;
 
 enum MDGUI__play_state { MDGUI__NOT_PLAYING, MDGUI__PAUSE, MDGUI__PLAYING,
                          MDGUI__WAITING_TO_STOP, MDGUI__INITIALIZING,
-                         MDGUI__PROGRAM_EXIT };
+                         MDGUI__PROGRAM_EXIT, MDGUI__READY_TO_EXIT };
 
 typedef enum MDGUI__play_state MDGUI__play_state;
 
@@ -45,6 +45,9 @@ void MDGUI__play_complete ();
 void draw_all ();
 
 MDGUI__terminal tinfo;
+
+MDGUI__terminal previous_tinfo;
+pthread_mutex_t MDGUI__mutex;
 
 // -1 - none selected
 //  0 - file box
@@ -86,7 +89,7 @@ void MDGUI__started_playing () {
 void MDGUI__handle_error (char *error) {
 
     MDGUI__log (error, tinfo);
-    current_play_state = MDGUI__NOT_PLAYING;
+    // current_play_state = MDGUI__NOT_PLAYING;
 
     return;
 }
@@ -145,6 +148,8 @@ char *will_play = NULL;
 
 void MDGUI__start_playing () {
 
+    pthread_mutex_unlock (&MDGUI__mutex);
+
     if (MDGUI__playlist_current < MDGUI__playlist_size){
 
         int curr_wp_size = MDGUI__get_string_size(MDGUI__playlist [MDGUI__playlist_current]) + 1;
@@ -176,10 +181,22 @@ void MDGUI__start_playing () {
 
 void MDGUI__play_complete () {
 
+    pthread_mutex_lock (&MDGUI__mutex);
+    if (current_play_state == MDGUI__PROGRAM_EXIT) {
+
+        current_play_state = MDGUI__READY_TO_EXIT;
+
+        pthread_mutex_unlock (&MDGUI__mutex);
+
+        return;
+    }
+
     MDGUI__log ("Done playing!", tinfo);
 
     current_play_state = MDGUI__NOT_PLAYING;
     curr_metadata_loaded = false;
+
+    pthread_mutex_unlock (&MDGUI__mutex);
 
     MDGUI__draw_meta_box_wrap ();
 
@@ -188,8 +205,6 @@ void MDGUI__play_complete () {
     return;
 }
 
-MDGUI__terminal previous_tinfo;
-pthread_mutex_t MDGUI__mutex;
 void *terminal_change (void *data) {
 
     previous_tinfo = tinfo;
@@ -202,7 +217,8 @@ void *terminal_change (void *data) {
 
         pthread_mutex_lock (&MDGUI__mutex);
 
-        if (current_play_state == MDGUI__PROGRAM_EXIT) {
+        if (current_play_state == MDGUI__READY_TO_EXIT) {
+
             pthread_mutex_unlock (&MDGUI__mutex);
 
             break;
@@ -262,11 +278,7 @@ void draw_all () {
 
 }
 
-
-
 void MD__cleanup() {
-
-    MDGUI__log ("Cleaning up.", tinfo);
 
     if (MDGUI__playlist) {
 
@@ -283,8 +295,6 @@ void MD__cleanup() {
     if (curr_dir) free (curr_dir);
     if (start_dir) free (start_dir);
     if (will_play) free (will_play);
-
-    MDAL__close();
 }
 
 bool key_pressed (char key[3]) {
@@ -297,26 +307,7 @@ bool key_pressed (char key[3]) {
 
         case MDGUI__NONE:
 
-            if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE)
-            {
-                MD__stop (curr_playing);
-
-                MDGUI__log ("Waiting for playing to finish.", tinfo);
-            }
-
-            while (current_play_state != MDGUI__NOT_PLAYING) { }
-
-            current_play_state = MDGUI__PROGRAM_EXIT;
-
-            pthread_join (terminal_thread, NULL);
-
-            pthread_join (melodeer_thread, NULL);
-
-            MD__cleanup ();
-
-            clear ();
-
-            curs_set (1);
+            // pthread_join (terminal_thread, NULL);
 
             return false;
 
@@ -581,6 +572,40 @@ bool key_pressed (char key[3]) {
     return true;
 }
 
+void mdgui_completion ()
+{
+    pthread_mutex_lock (&MDGUI__mutex);
+
+    if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE)
+    {
+        current_play_state = MDGUI__PROGRAM_EXIT;
+
+        pthread_mutex_unlock (&MDGUI__mutex);
+
+        MD__stop (curr_playing);
+
+        for (;;) {
+            pthread_mutex_lock (&MDGUI__mutex);
+            if (current_play_state == MDGUI__READY_TO_EXIT) {
+
+                pthread_mutex_unlock (&MDGUI__mutex);
+                break;
+            }
+            pthread_mutex_unlock (&MDGUI__mutex);
+        }
+    }
+    else
+    {
+        current_play_state = MDGUI__PROGRAM_EXIT;
+        pthread_mutex_unlock (&MDGUI__mutex);
+    }
+
+    MD__cleanup ();
+
+    MDAL__close();
+
+}
+
 int main (int argc, char *argv[])
 {
     MDAL__initialize (4096, 4, 4);
@@ -600,7 +625,7 @@ int main (int argc, char *argv[])
     clear();
 
     curs_set (0);
-    
+
     MDGUIFB__get_dir_contents (&ccont, &cnum, start_dir);
 
     draw_all ();
@@ -611,9 +636,7 @@ int main (int argc, char *argv[])
         return 0;
     }
 
-    MDGUI__wait_for_keypress(key_pressed, draw_all);
-
-    endwin();
+    MDGUI__wait_for_keypress(key_pressed, mdgui_completion);
 
     return 0;
 }

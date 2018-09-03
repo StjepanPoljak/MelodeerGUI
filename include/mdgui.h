@@ -23,7 +23,7 @@ void MDGUI__log (char *log, MDGUI__terminal tinfo);
 
 MDGUI__terminal MDGUI__get_terminal_information ();
 
-void MDGUI__wait_for_keypress (bool (key_pressed)(char [3]), void (on_needs_redraw) (void));
+void MDGUI__wait_for_keypress (bool (key_pressed)(char [3]), void (on_completion) (void));
 
 void MDGUI__draw_box (bool box_selected, int term_pos_x, int term_pos_y, int width, int height);
 
