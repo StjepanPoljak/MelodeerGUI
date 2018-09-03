@@ -2,15 +2,18 @@
 
 pthread_mutex_t MDGUI__mutex;
 
+bool MDGUI__needs_redraw = false;
+
 void MDGUI__clear_screen () {
 
-    printf("\033c");
+    clear();
 }
 
 void MDGUI__log (char *log, MDGUI__terminal tinfo) {
-
-    for(int i=0;i<tinfo.cols;i++) printf("\033[%d;%dH ", tinfo.lines, i);
-    printf("\033[2m\033[%d;%dH%s\033[0m", tinfo.lines, 0, log);
+    move (tinfo.lines - 1, 0);
+    clrtoeol ();
+    mvprintw (tinfo.lines - 1, 0, "%s", log);
+    refresh ();
 }
 
 MDGUI__terminal MDGUI__get_terminal_information () {
@@ -26,7 +29,7 @@ MDGUI__terminal MDGUI__get_terminal_information () {
     return tinfo;
 }
 
-void MDGUI__wait_for_keypress (bool (key_pressed)(int [3])) {
+void MDGUI__wait_for_keypress (bool (key_pressed)(char [3]), void (on_needs_redraw)(void)) {
 
     struct termios orig_term_attr;
     struct termios new_term_attr;
@@ -35,40 +38,31 @@ void MDGUI__wait_for_keypress (bool (key_pressed)(int [3])) {
 
     tcgetattr (fileno(stdin), &orig_term_attr);
     memcpy (&new_term_attr, &orig_term_attr, sizeof (struct termios));
-    new_term_attr.c_lflag &= ~(ECHO|ICANON);
-    new_term_attr.c_cc[VTIME] = 0;
-    new_term_attr.c_cc[VMIN] = 0;
+    new_term_attr.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ECHOPRT | ECHOKE | ICRNL);
     tcsetattr (fileno(stdin), TCSANOW, &new_term_attr);
 
-    struct timespec tsp = {0,500};
+    fd_set input_set, output_set;
 
     for(;;) {
 
-        nanosleep(&tsp, NULL);
+        char buff[3];
+        memset (buff, 0, 3);
 
-        int key = fgetc (stdin);
-        int complete[3] = {0,0,0};
-        int last = 0;
+        FD_ZERO (&input_set);
+        FD_SET (STDIN_FILENO, &input_set);
 
-        if (key!=-1) {
+        int readn = select(1, &input_set, NULL, NULL, NULL);
 
-            for (;;) {
+        if (FD_ISSET(STDIN_FILENO, &input_set))
+        {
+            int buffread = read(STDIN_FILENO, buff, 3);
 
-                if (last < 3) complete[last++] = key;
-
-                int new = fgetc(stdin);
-                if (new == -1)
-                    break;
-                else
-                    key = new;
-            }
-
-            if (!key_pressed (complete)) break;
-            last = 0;
+            if (!key_pressed(buff)) break;
         }
     }
 
     tcsetattr (fileno (stdin), TCSANOW, &orig_term_attr);
+
     return;
 }
 
@@ -89,11 +83,15 @@ void MDGUI__draw_box (bool box_selected, int term_pos_x, int term_pos_y, int wid
 
             else curr = ' ';
 
-            if (box_selected && curr != ' ') printf("\033[1m");
-            printf("\033[%d;%dH%c",i+term_pos_y, j+term_pos_x,curr);
-            if (box_selected && curr != ' ') printf("\033[0m");
+            if (box_selected && curr != ' ') attron(A_BOLD);
+
+            mvprintw(i + term_pos_y, j + term_pos_x, "%c", curr);
+
+            if (box_selected && curr != ' ') attroff(A_BOLD);
         }
     }
+
+    refresh();
 }
 
 //without terminal zero

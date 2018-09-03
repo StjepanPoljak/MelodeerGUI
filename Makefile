@@ -1,6 +1,6 @@
 proj = melodeergui
 objects = main.o mdgui.o mdguifilebox.o mdguimeta.o
-libs = openal FLAC pthread mp3lame
+libs = openal FLAC pthread mp3lame ncurses
 
 melodeerbuild = mdcore.o mdflac.o mdwav.o mdlame.o
 melodir = ../Melodeer/build/
@@ -13,11 +13,11 @@ $(proj): $(objects)
 	gcc $(addprefix $(builddir)/,$^) $(addprefix $(melodir),$(melodeerbuild)) $(addprefix -l,$(libs)) -o $(proj)
 
 %.o: $(srcdir)/%.c $(depsdir)/%.h
-	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir) -O3
+	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir)
 
 main.o: $(srcdir)/main.c
 	-mkdir $(builddir)
-	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir) -I$(meloinclude) -O3
+	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir) -I$(meloinclude)
 
 .PHONY=clean
 clean:

@@ -195,19 +195,23 @@ void MDGUIFB__print_string_array (char *carray[], int cnum,
 
     for (int i = start, j = 0; i < end; i++, j++) {
 
-        if (i==num_selected) printf("\033[7m");
+        if (i==num_selected) attron (A_REVERSE);
 
         int str_size = MDGUI__get_string_size(carray[i]);
 
         int chars_to_print = (str_size > width) ? width : str_size;
 
-        if (carray[i][0] == 'd') printf ("\033[1m");
+        if (carray[i][0] == 'd') attron (A_BOLD);
 
         for (int k = 0; k < chars_to_print - 1; k++)
-            printf("\033[%d;%dH%c", term_pos_y + j, term_pos_x + k, carray[i][k+1]);
+            
+            mvprintw(term_pos_y + j, term_pos_x + k, "%c", carray[i][k+1]);
 
-        if (i== num_selected || carray[i][0] == 'd') printf("\033[0m");
+        if (i== num_selected) attroff (A_REVERSE);
+        if (carray[i][0] == 'd') attroff (A_BOLD);
     }
+
+    refresh();
 }
 
 void MDGUIFB__draw_file_box (char *carray[], int cnum, bool box_selected,
