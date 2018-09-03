@@ -1,16 +1,15 @@
 proj = melodeergui
 objects = main.o mdgui.o mdguifilebox.o mdguimeta.o
-libs = openal FLAC pthread mp3lame ncurses
+libs = openal FLAC pthread mp3lame
 
-melodeerbuild = mdcore.o mdflac.o mdwav.o mdlame.o
-melodir = ../Melodeer/build/
+melodir = lib
 meloinclude = ../Melodeer/include
 srcdir = source
 builddir = build
 depsdir = include
 
 $(proj): $(objects)
-	gcc $(addprefix $(builddir)/,$^) $(addprefix $(melodir),$(melodeerbuild)) $(addprefix -l,$(libs)) -o $(proj)
+	gcc $(addprefix $(builddir)/,$^) $(addprefix -l,$(libs)) $(melodir)/* -o $(proj)
 
 %.o: $(srcdir)/%.c $(depsdir)/%.h
 	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir) -O3
