@@ -27,13 +27,13 @@ typedef enum MDGUI__play_state MDGUI__play_state;
 
 MD__filetype    MD__get_extension       (const char *filename);
 
-void            MD__handle_metadata     (MD__metadata metadata);
-unsigned int    MD__get_seconds         (volatile MD__buffer_chunk *curr_chunk,
+void            MD__handle_metadata     (MD__metadata_t metadata);
+unsigned int    MD__get_seconds         (volatile MD__buffer_chunk_t *curr_chunk,
                                          unsigned int sample_rate,
                                          unsigned int channels,
                                          unsigned int bps);
 
-void            transform               (volatile MD__buffer_chunk *curr_chunk,
+void            transform               (volatile MD__buffer_chunk_t *curr_chunk,
                                          unsigned int sample_rate,
                                          unsigned int channels,
                                          unsigned int bps);
@@ -61,7 +61,7 @@ char **MDGUI__playlist = NULL;
 int MDGUI__playlist_current = -1;
 int MDGUI__playlist_size = 0;
 
-MD__metadata curr_metadata;
+MD__metadata_t curr_metadata;
 bool curr_metadata_loaded = false;
 
 int MDGUI__file_box_x = 3;
@@ -723,14 +723,14 @@ void MDGUI__draw_meta_box_wrap ()
     }
 }
 
-void MD__handle_metadata (MD__metadata metadata) {
+void MD__handle_metadata (MD__metadata_t metadata) {
     curr_metadata = metadata;
     curr_metadata_loaded = true;
     MDGUI__draw_meta_box_wrap ();
 
 }
 
-void transform (volatile MD__buffer_chunk *curr_chunk,
+void transform (volatile MD__buffer_chunk_t *curr_chunk,
                 unsigned int sample_rate,
                 unsigned int channels,
                 unsigned int bps) {
@@ -757,7 +757,7 @@ void transform (volatile MD__buffer_chunk *curr_chunk,
     }
 }
 
-unsigned int MD__get_seconds (volatile MD__buffer_chunk *curr_chunk,
+unsigned int MD__get_seconds (volatile MD__buffer_chunk_t *curr_chunk,
                               unsigned int sample_rate,
                               unsigned int channels,
                               unsigned int bps) {
