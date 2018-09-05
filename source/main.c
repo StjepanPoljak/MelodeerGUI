@@ -102,7 +102,7 @@ void *MDGUI__play (void *data) {
 
     void *(* decoder)(void *) = NULL;
 
-    MD__buffer_transform = transform;
+    current_file.MD__buffer_transform = transform;
 
     MD__filetype type = MD__get_extension ((char *)data);
 
