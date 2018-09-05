@@ -2,10 +2,10 @@
 #include <stdio.h>
 #include <pthread.h>
 
-#include "mdcore.h"
-#include "mdflac.h"
-#include "mdwav.h"
-#include "mdlame.h"
+#include <melodeer/mdcore.h>
+#include <melodeer/mdflac.h>
+#include <melodeer/mdwav.h>
+#include <melodeer/mdlame.h>
 
 #include "mdgui.h"
 #include "mdguifilebox.h"
