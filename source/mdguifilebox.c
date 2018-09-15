@@ -181,8 +181,9 @@ bool MDGUIFB__get_dir_contents (char **carray[], int *cnum, char *curr_dir) {
     return false;
 }
 
-void MDGUIFB__print_string_array (char *carray[], int cnum,
-                             int num_first, int num_lines, int num_selected,
+void MDGUIFB__print_string_array (char *carray[], int cnum, bool dirflag,
+                             int num_first, int num_lines,
+                             int num_highlighted, int num_selected,
                              int term_pos_x, int term_pos_y, int width) {
 
     int line = 0;
@@ -195,31 +196,47 @@ void MDGUIFB__print_string_array (char *carray[], int cnum,
 
     for (int i = start, j = 0; i < end; i++, j++) {
 
-        if (i==num_selected) attron (A_REVERSE);
+        if (i == num_highlighted) attron (A_REVERSE);
 
         int str_size = MDGUI__get_string_size(carray[i]);
 
-        int chars_to_print = (str_size > width) ? width : str_size;
+        int get_last_slash = 0;
 
-        if (carray[i][0] == 'd') attron (A_BOLD);
+        if (!dirflag) for (int k = str_size - 1; k >= 0; k--) if (carray[i][k] == '/') {
 
-        for (int k = 0; k < chars_to_print - 1; k++)
-            
-            mvprintw(term_pos_y + j, term_pos_x + k, "%c", carray[i][k+1]);
+            get_last_slash = k + 1;
+            str_size -= get_last_slash;
+            break;
+        }
 
-        if (i== num_selected) attroff (A_REVERSE);
-        if (carray[i][0] == 'd') attroff (A_BOLD);
+        int chars_to_print = str_size >= width ? width : str_size;
+
+        if (carray[i][0] == 'd' && dirflag) attron (A_BOLD);
+
+        if (!dirflag && i == num_selected) attron (A_BOLD);
+
+        int maxprint = dirflag ? chars_to_print - 1 : chars_to_print;
+
+        for (int k = 0; k < maxprint; k++)
+
+            mvprintw(term_pos_y + j, term_pos_x + k, "%c", carray[i][get_last_slash + (dirflag ? k+1 : k)]);
+
+        if (i == num_highlighted) attroff (A_REVERSE);
+
+        if (carray[i][0] == 'd' && dirflag) attroff (A_BOLD);
+
+        if (!dirflag && i == num_selected) attroff (A_BOLD);
     }
 
     refresh();
 }
 
-void MDGUIFB__draw_file_box (char *carray[], int cnum, bool box_selected,
-                             int num_first, int num_selected,
+void MDGUIFB__draw_file_box (char *carray[], int cnum, bool box_selected, bool dirflag,
+                             int num_first, int num_highlighted, int num_selected,
                              int term_pos_x, int term_pos_y, int width, int height) {
 
     MDGUI__draw_box (box_selected, term_pos_x, term_pos_y, width, height);
-    MDGUIFB__print_string_array (carray, cnum,
-                                 num_first, height - 2, num_selected,
+    MDGUIFB__print_string_array (carray, cnum, dirflag,
+                                 num_first, height - 2, num_highlighted, num_selected,
                                  term_pos_x + 1, term_pos_y + 1, width - 2);
 }

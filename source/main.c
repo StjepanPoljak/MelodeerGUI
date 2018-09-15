@@ -15,7 +15,7 @@ enum MD__filetype { MD__FLAC, MD__WAV, MD__MP3, MD__UNKNOWN };
 
 typedef enum MD__filetype MD__filetype;
 
-enum MDGUI__component { MDGUI__NONE, MDGUI__FILEBOX, MDGUI__METABOX };
+enum MDGUI__component { MDGUI__NONE, MDGUI__FILEBOX, MDGUI__METABOX, MDGUI__PLAYLIST };
 
 typedef enum MDGUI__component MDGUI__component;
 
@@ -64,13 +64,13 @@ int MDGUI__playlist_size = 0;
 MD__metadata_t curr_metadata;
 bool curr_metadata_loaded = false;
 
-int MDGUI__file_box_x = 3;
-int MDGUI__file_box_y = 3;
+int MDGUI__file_box_x = 2;
+int MDGUI__file_box_y = 2;
 int MDGUI__file_box_w = 20;
 int MDGUI__file_box_h = 20;
 
 int MDGUI__meta_box_x = 23;
-int MDGUI__meta_box_y = 3;
+int MDGUI__meta_box_y = 2;
 int MDGUI__meta_box_w = 20;
 int MDGUI__meta_box_h = 7;
 
@@ -78,10 +78,44 @@ pthread_t melodeer_thread;
 
 pthread_t terminal_thread;
 
+int selected_file = -1;
+int first_line = 0;
+
+char **ccont = NULL;
+int cnum = 0;
+
+char *curr_dir = NULL;
+char *start_dir = NULL;
+
+void redraw_file_box ()
+{
+    MDGUIFB__draw_file_box (ccont, cnum,
+                            potential_component == MDGUI__FILEBOX, true,
+                            first_line, selected_file, -1,
+                            MDGUI__file_box_x, MDGUI__file_box_y,
+                            MDGUI__file_box_w, MDGUI__file_box_h);
+}
+
+void redraw_playlist_box ()
+{
+    MDGUIFB__draw_file_box (MDGUI__playlist, MDGUI__playlist_size,
+                            potential_component == MDGUI__PLAYLIST, false,
+                            0, -1, MDGUI__playlist_current - 1,
+                            MDGUI__meta_box_x + MDGUI__meta_box_w, MDGUI__file_box_y,
+                            MDGUI__file_box_w, MDGUI__file_box_h);
+}
+
 void MDGUI__started_playing () {
 
     current_play_state = MDGUI__PLAYING;
-    MDGUI__log("Playing!", tinfo);
+
+    redraw_playlist_box ();
+
+    char buff[PATH_MAX + 10];
+
+    snprintf (buff, PATH_MAX + 10, "Playing: %s", MDGUI__playlist[MDGUI__playlist_current - 1]);
+
+    MDGUI__log(buff, tinfo);
 
     return;
 }
@@ -230,9 +264,9 @@ void *terminal_change (void *data) {
 
             previous_tinfo = tinfo;
 
-            MDGUI__file_box_w = tinfo.cols / 3;
+            MDGUI__file_box_w = (tinfo.cols - 3) / 3;
             MDGUI__file_box_h = tinfo.lines - 6;
-            MDGUI__meta_box_w = tinfo.cols / 3;
+            MDGUI__meta_box_w = MDGUI__file_box_w;//tinfo.cols / 3;
 
             clear();
 
@@ -252,23 +286,6 @@ void *terminal_change (void *data) {
     return NULL;
 }
 
-int selected_file = -1;
-int first_line = 0;
-
-char **ccont = NULL;
-int cnum = 0;
-
-char *curr_dir = NULL;
-char *start_dir = NULL;
-
-void redraw_file_box ()
-{
-    MDGUIFB__draw_file_box (ccont, cnum,
-                            potential_component == MDGUI__FILEBOX,
-                            first_line, selected_file,
-                            MDGUI__file_box_x, MDGUI__file_box_y,
-                            MDGUI__file_box_w, MDGUI__file_box_h);
-}
 
 void draw_all () {
 
@@ -276,6 +293,7 @@ void draw_all () {
 
     MDGUI__draw_meta_box_wrap ();
 
+    redraw_playlist_box ();
 }
 
 void MD__cleanup() {
@@ -616,9 +634,9 @@ int main (int argc, char *argv[])
 
     tinfo = MDGUI__get_terminal_information ();
 
-    MDGUI__file_box_w = tinfo.cols / 3;
+    MDGUI__file_box_w = (tinfo.cols - 3) / 3;
     MDGUI__file_box_h = tinfo.lines - 6;
-    MDGUI__meta_box_w = tinfo.cols / 3;
+    MDGUI__meta_box_w = MDGUI__file_box_w;//tinfo.cols / 3;
 
     MDGUIFB__get_current_dir (&start_dir);
 
