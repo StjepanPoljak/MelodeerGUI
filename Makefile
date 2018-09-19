@@ -1,6 +1,6 @@
 proj = melodeergui
 objects = main.o mdgui.o mdguifilebox.o mdguimeta.o
-libs = melodeer pthread ncurses tinfo
+libs = melodeer pthread ncurses
 
 srcdir = source
 builddir = build
