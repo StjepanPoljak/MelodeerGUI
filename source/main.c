@@ -262,7 +262,7 @@ void *terminal_change (void *data) {
 
         pthread_mutex_lock (&MDGUI__mutex);
 
-        if (current_play_state == MDGUI__READY_TO_EXIT) {
+        if (current_play_state == MDGUI__PROGRAM_EXIT) {
 
             pthread_mutex_unlock (&MDGUI__mutex);
 
@@ -313,7 +313,10 @@ void MD__cleanup() {
 
     if (MDGUI__playlist) {
 
-        for (int i = 0; i < MDGUI__playlist_size; i++) if (MDGUI__playlist[i]) free(MDGUI__playlist[i]);
+        for (int i = 0; i < MDGUI__playlist_size; i++)
+
+            if (MDGUI__playlist[i]) free (MDGUI__playlist[i]);
+
         free (MDGUI__playlist);
     }
 
@@ -338,8 +341,6 @@ bool key_pressed (char key[3]) {
 
         case MDGUI__NONE:
 
-            // pthread_join (terminal_thread, NULL);
-
             return false;
 
         default:
@@ -351,7 +352,8 @@ bool key_pressed (char key[3]) {
             draw_all ();
         }
 
-    } else if ((key [0] == 13 || key [0] == 10) && key [1] == 0 && key[2] == 0) {
+    }
+    else if ((key [0] == 13 || key [0] == 10) && key [1] == 0 && key[2] == 0) {
 
         // RETURN
 
@@ -443,8 +445,6 @@ bool key_pressed (char key[3]) {
 
                         MDGUIFB__get_dir_contents (&ccont, &cnum, curr_dir == NULL ? olddir : curr_dir);
 
-                        MDGUI__sort (&ccont, cnum, MDGUIFB__compare);
-
                         selected_file = 0;
                         first_line = 0;
 
@@ -458,12 +458,9 @@ bool key_pressed (char key[3]) {
 
                 MDGUIFB__get_dir_contents (&ccont, &cnum, curr_dir == NULL ? olddir : curr_dir);
 
-                MDGUI__sort (&ccont, cnum, MDGUIFB__compare);
-
                 selected_file = 0;
                 first_line = 0;
 
-                // draw_all ();
                 redraw_file_box ();
 
                 break;
@@ -475,12 +472,33 @@ bool key_pressed (char key[3]) {
 
             break;
 
+        case MDGUI__PLAYLIST:
+
+            if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
+
+                current_play_state = MDGUI__WAITING_TO_STOP;
+
+                MD__stop (curr_playing);
+
+                MDGUI__playlist_current = MDGUI__playlist_highlighted;
+
+                MDGUI__log ("Waiting to stop.", tinfo);
+
+            } else {
+
+                MDGUI__playlist_current = MDGUI__playlist_highlighted;
+
+                MDGUI__start_playing ();
+            }
+
+            break;
+
         default:
 
             break;
         }
-
-    } else if (key[0] == 27 && key[1] == 91 && key[2] == 66) {
+    }
+    else if (key[0] == 27 && key[1] == 91 && key[2] == 66) {
 
         // DOWN ARROW
 
@@ -513,7 +531,10 @@ bool key_pressed (char key[3]) {
 
         case MDGUI__PLAYLIST:
 
-            if (MDGUI__playlist_highlighted < MDGUI__playlist_first && MDGUI__playlist_highlighted >= 0) MDGUI__playlist_first = MDGUI__playlist_highlighted;
+            if (MDGUI__playlist_highlighted < MDGUI__playlist_first
+            &&  MDGUI__playlist_highlighted >= 0)
+                MDGUI__playlist_first = MDGUI__playlist_highlighted;
+
             else if (MDGUI__playlist_highlighted > MDGUI__playlist_first + MDGUI__file_box_h - 2) {
 
                 MDGUI__playlist_highlighted = MDGUI__playlist_first + MDGUI__file_box_h - 3;
@@ -533,7 +554,8 @@ bool key_pressed (char key[3]) {
             break;
         }
 
-    } else if (key[0] == 27 && key[1] == 91 && key[2] == 65) {
+    }
+    else if (key[0] == 27 && key[1] == 91 && key[2] == 65) {
 
         // UP ARROW
 
@@ -577,7 +599,8 @@ bool key_pressed (char key[3]) {
 
             break;
         }
-    } else if (key[0] == 27 && key[1] == 91 && key[2] == 67) {
+    }
+    else if (key[0] == 27 && key[1] == 91 && key[2] == 67) {
 
         // RIGHT ARROW
 
@@ -723,6 +746,8 @@ int main (int argc, char *argv[]) {
     }
 
     MDGUI__wait_for_keypress(key_pressed, mdgui_completion);
+
+    pthread_join (terminal_thread, NULL);
 
     return 0;
 }

@@ -204,6 +204,8 @@ bool MDGUIFB__get_dir_contents (char **carray[], int *cnum, char *curr_dir) {
 
         *cnum = last;
 
+        MDGUI__sort (carray, *cnum, MDGUIFB__compare);
+
         return true;
     }
 
@@ -244,7 +246,7 @@ void MDGUIFB__print_string_array (char *carray[], int cnum, bool dirflag,
 
         if (!dirflag && i == num_selected) attron (A_BOLD);
 
-        int maxprint = chars_to_print - 1;
+        int maxprint = dirflag ? chars_to_print - 1 : chars_to_print;
 
         for (int k = 0; k < maxprint; k++)
 
