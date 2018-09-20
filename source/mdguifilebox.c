@@ -204,7 +204,7 @@ bool MDGUIFB__get_dir_contents (char **carray[], int *cnum, char *curr_dir) {
 
         *cnum = last;
 
-        MDGUI__sort (carray, *cnum, MDGUIFB__compare);
+        MDGUI__sort (*carray, *cnum, MDGUIFB__compare);
 
         return true;
     }

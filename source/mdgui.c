@@ -111,43 +111,43 @@ int MDGUI__get_string_size (char *string) {
     return string_size;
 }
 
-int MDGUI__partition (char **array[], int array_size, bool(*compare_f)(char *, char*), int lo, int hi) {
+int MDGUI__partition (char *array[], int array_size, bool(*compare_f)(char *, char*), int lo, int hi) {
 
-    char **pivot = *array+hi;
+    char *pivot = array[hi];
     int i = lo - 1;
-    //int j = hi - 1;
 
     for(int j = lo; j <= hi - 1; j++)
     {
-        if (!compare_f(*(*array+j), *pivot))
+        if (!compare_f(array[j], pivot))
         {
             i++;
 
-            char *temp = *(*array+i);
+            char *temp = array[i];
 
-            *(*array+i) = *(*array+j);
-            *(*array+j) = temp;
+            array[i] = array[j];
+            array[j] = temp;
         }
     }
 
-    char *temp = *(*array+(i+1));
+    char *temp = array[i+1];
 
-    *(*array+(i+1)) = *(*array+hi);
-    *(*array+hi) = temp;
+    array[i+1] = array[hi];
+    array[hi] = temp;
 
-    return (i+1);
+    return i+1;
 }
 
-void MDGUI__sort_step (char **array[], int array_size, bool(*compare_f)(char *, char*), int lo, int hi) {
+void MDGUI__sort_step (char *array[], int array_size, bool(*compare_f)(char *, char*), int lo, int hi) {
 
     if (lo < hi) {
+
         int p = MDGUI__partition (array, array_size, compare_f, lo, hi);
         MDGUI__sort_step (array, array_size, compare_f, lo, p - 1);
         MDGUI__sort_step (array, array_size, compare_f, p + 1, hi);
     }
 }
 
-void MDGUI__sort (char **array[], int array_size, bool(*compare_f)(char *, char*)) {
+void MDGUI__sort (char *array[], int array_size, bool(*compare_f)(char *, char*)) {
 
     MDGUI__sort_step (array, array_size, compare_f, 0, array_size - 1);
 }
