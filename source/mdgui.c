@@ -8,6 +8,7 @@ void MDGUI__clear_screen () {
 }
 
 void MDGUI__log (char *log, MDGUI__terminal tinfo) {
+
     move (tinfo.lines - 1, 0);
     clrtoeol ();
     mvprintw (tinfo.lines - 1, 0, "%s", log);
@@ -110,26 +111,43 @@ int MDGUI__get_string_size (char *string) {
     return string_size;
 }
 
-char MDGUI__small_cap (char c) {
+int MDGUI__partition (char **array[], int array_size, bool(*compare_f)(char *, char*), int lo, int hi) {
 
-    return (c >= 65 && c <= 90) ? c + 32 : c;
-}
+    char **pivot = *array+hi;
+    int i = lo - 1;
+    //int j = hi - 1;
 
-bool MDGUI__compare (char *string1, char *string2) {
+    for(int j = lo; j <= hi - 1; j++)
+    {
+        if (!compare_f(*(*array+j), *pivot))
+        {
+            i++;
 
-    int string1_size = MDGUI__get_string_size (string1);
-    int string2_size = MDGUI__get_string_size (string2);
+            char *temp = *(*array+i);
 
-    int min_size = string1_size > string2_size ? string2_size : string1_size;
-
-    for (int i = 0; i < min_size; i++) {
-        char curr1 = MDGUI__small_cap(string1[i]);
-        char curr2 = MDGUI__small_cap(string2[i]);
-        if (curr1 == curr2) continue;
-        if (curr1 < curr2) return false;
-        else return true;
+            *(*array+i) = *(*array+j);
+            *(*array+j) = temp;
+        }
     }
 
-    // if equal - does not matter much really
-    return false;
+    char *temp = *(*array+(i+1));
+
+    *(*array+(i+1)) = *(*array+hi);
+    *(*array+hi) = temp;
+
+    return (i+1);
+}
+
+void MDGUI__sort_step (char **array[], int array_size, bool(*compare_f)(char *, char*), int lo, int hi) {
+
+    if (lo < hi) {
+        int p = MDGUI__partition (array, array_size, compare_f, lo, hi);
+        MDGUI__sort_step (array, array_size, compare_f, lo, p - 1);
+        MDGUI__sort_step (array, array_size, compare_f, p + 1, hi);
+    }
+}
+
+void MDGUI__sort (char **array[], int array_size, bool(*compare_f)(char *, char*)) {
+
+    MDGUI__sort_step (array, array_size, compare_f, 0, array_size - 1);
 }

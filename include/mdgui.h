@@ -29,6 +29,8 @@ void MDGUI__draw_box (bool box_selected, int term_pos_x, int term_pos_y, int wid
 
 int MDGUI__get_string_size (char *string);
 
+void MDGUI__sort (char **array[], int array_size, bool(*compare_f)(char *, char*));
+
 #endif
 
 #define MDGUI

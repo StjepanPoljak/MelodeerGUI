@@ -1,31 +1,58 @@
 #include "mdguifilebox.h"
 
+char MDGUIFB__small_cap (char c) {
+
+    return (c >= 65 && c <= 90) ? c + 32 : c;
+}
+
+bool MDGUIFB__compare (char *string1, char *string2) {
+
+    int string1_size = MDGUI__get_string_size (string1);
+    int string2_size = MDGUI__get_string_size (string2);
+
+    int min_size = string1_size > string2_size ? string2_size : string1_size;
+
+    for (int i = 0; i < min_size; i++) {
+
+        char curr1 = MDGUIFB__small_cap(string1[i]);
+        char curr2 = MDGUIFB__small_cap(string2[i]);
+
+        if (curr1 == curr2) continue;
+
+        return (curr1 > curr2);
+    }
+
+    return string1_size > string2_size;
+}
+
 void MDGUIFB__get_current_dir (char **currdir) {
 
     char cwd[PATH_MAX];
 
-    if (getcwd (cwd, sizeof(cwd)) != NULL) {
-
-        if (*currdir == NULL)
-        {
-            char *newdir = malloc(sizeof(newdir)*(MDGUI__get_string_size(cwd)+1));
-            for(int i=0;i<MDGUI__get_string_size(cwd); i++) newdir[i] = cwd[i];
-            newdir[MDGUI__get_string_size(cwd)] = 0;
-            *currdir = newdir;
-        }
-        else {
-            char *oldcurrdir = *currdir;
-            *currdir = cwd;
-            free (oldcurrdir);
-        }
-
-    } else {
+    if (getcwd (cwd, sizeof(cwd)) == NULL) {
 
         if (*currdir != NULL) {
+
             char *oldcurrdir = *currdir;
             *currdir = NULL;
             free (oldcurrdir);
         }
+
+        return;
+    }
+
+    if (*currdir == NULL) {
+
+        char *newdir = malloc(sizeof(newdir)*(MDGUI__get_string_size(cwd)+1));
+        for(int i=0;i<MDGUI__get_string_size(cwd); i++) newdir[i] = cwd[i];
+        newdir[MDGUI__get_string_size(cwd)] = 0;
+        *currdir = newdir;
+    }
+    else {
+
+        char *oldcurrdir = *currdir;
+        *currdir = cwd;
+        free (oldcurrdir);
     }
 }
 
@@ -46,7 +73,9 @@ void MDGUIFB__append_to_dirname (char **new, char *string, char *append) {
 
     if (needs_slash) result [string_count] = '/';
 
-    for (int i=0; i < append_count; i++) result[i + string_count + (needs_slash ? 1 : 0)] = append[i];
+    for (int i=0; i < append_count; i++)
+
+      result[i + string_count + (needs_slash ? 1 : 0)] = append[i];
 
     result [new_size - 1] = 0;
 
@@ -215,11 +244,12 @@ void MDGUIFB__print_string_array (char *carray[], int cnum, bool dirflag,
 
         if (!dirflag && i == num_selected) attron (A_BOLD);
 
-        int maxprint = dirflag ? chars_to_print - 1 : chars_to_print;
+        int maxprint = chars_to_print - 1;
 
         for (int k = 0; k < maxprint; k++)
 
-            mvprintw(term_pos_y + j, term_pos_x + k, "%c", carray[i][get_last_slash + (dirflag ? k+1 : k)]);
+            mvprintw (term_pos_y + j, term_pos_x + k, "%c",
+                      carray[i][get_last_slash + (dirflag ? k+1 : k)]);
 
         if (i == num_highlighted) attroff (A_REVERSE);
 

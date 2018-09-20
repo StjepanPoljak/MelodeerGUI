@@ -60,6 +60,8 @@ MDGUI__play_state volatile current_play_state = MDGUI__NOT_PLAYING;
 char **MDGUI__playlist = NULL;
 int MDGUI__playlist_current = -1;
 int MDGUI__playlist_size = 0;
+int MDGUI__playlist_highlighted = -1;
+int MDGUI__playlist_first = 0;
 
 MD__metadata_t curr_metadata;
 bool curr_metadata_loaded = false;
@@ -90,19 +92,21 @@ char *start_dir = NULL;
 void redraw_file_box ()
 {
     MDGUIFB__draw_file_box (ccont, cnum,
-                            potential_component == MDGUI__FILEBOX, true,
-                            first_line, selected_file, -1,
-                            MDGUI__file_box_x, MDGUI__file_box_y,
-                            MDGUI__file_box_w, MDGUI__file_box_h);
+                           potential_component == MDGUI__FILEBOX, true,
+                           first_line, selected_file, -1,
+                           MDGUI__file_box_x, MDGUI__file_box_y,
+                           MDGUI__file_box_w, MDGUI__file_box_h);
 }
 
 void redraw_playlist_box ()
 {
     MDGUIFB__draw_file_box (MDGUI__playlist, MDGUI__playlist_size,
-                            potential_component == MDGUI__PLAYLIST, false,
-                            0, -1, MDGUI__playlist_current - 1,
-                            MDGUI__meta_box_x + MDGUI__meta_box_w, MDGUI__file_box_y,
-                            MDGUI__file_box_w, MDGUI__file_box_h);
+                           potential_component == MDGUI__PLAYLIST, false,
+                           MDGUI__playlist_first, MDGUI__playlist_highlighted,
+                           MDGUI__playlist_current - 1,
+                           MDGUI__meta_box_x + MDGUI__meta_box_w,
+                           MDGUI__file_box_y,
+                           MDGUI__file_box_w, MDGUI__file_box_h);
 }
 
 void MDGUI__started_playing () {
@@ -186,14 +190,14 @@ void MDGUI__start_playing () {
 
     if (MDGUI__playlist_current < MDGUI__playlist_size){
 
-        int curr_wp_size = MDGUI__get_string_size(MDGUI__playlist [MDGUI__playlist_current]) + 1;
+        int curr_wp_size = MDGUI__get_string_size (MDGUI__playlist [MDGUI__playlist_current]) + 1;
 
         if (will_play) will_play = realloc(will_play, sizeof(*will_play)*curr_wp_size);
         else will_play = malloc(sizeof(*will_play)*curr_wp_size);
 
-        for (int i=0; i<curr_wp_size; i++) {
+        for (int i=0; i<curr_wp_size; i++)
+
             will_play[i] = MDGUI__playlist[MDGUI__playlist_current][i];
-        }
 
         MDGUI__playlist_current++;
     }
@@ -239,6 +243,13 @@ void MDGUI__play_complete () {
     return;
 }
 
+void layout () {
+
+    MDGUI__file_box_w = (tinfo.cols - 3) / 3;
+    MDGUI__file_box_h = tinfo.lines - 6;
+    MDGUI__meta_box_w = MDGUI__file_box_w;
+}
+
 void *terminal_change (void *data) {
 
     previous_tinfo = tinfo;
@@ -264,9 +275,11 @@ void *terminal_change (void *data) {
 
             previous_tinfo = tinfo;
 
-            MDGUI__file_box_w = (tinfo.cols - 3) / 3;
-            MDGUI__file_box_h = tinfo.lines - 6;
-            MDGUI__meta_box_w = MDGUI__file_box_w;//tinfo.cols / 3;
+            layout ();
+
+            if (MDGUI__file_box_h >= cnum) first_line = 0;
+
+            if (MDGUI__file_box_x >= MDGUI__playlist_size) MDGUI__playlist_first = 0;
 
             clear();
 
@@ -375,6 +388,8 @@ bool key_pressed (char key[3]) {
                 if (MDGUI__playlist_size > 0) {
 
                     MDGUI__playlist_current = 0;
+                    MDGUI__playlist_first = 0;
+                    MDGUI__playlist_highlighted = -1;
 
                     if (MDGUI__playlist) {
 
@@ -428,10 +443,11 @@ bool key_pressed (char key[3]) {
 
                         MDGUIFB__get_dir_contents (&ccont, &cnum, curr_dir == NULL ? olddir : curr_dir);
 
+                        MDGUI__sort (&ccont, cnum, MDGUIFB__compare);
+
                         selected_file = 0;
                         first_line = 0;
 
-                        // draw_all ();
                         redraw_file_box ();
 
                         break;
@@ -441,6 +457,8 @@ bool key_pressed (char key[3]) {
                 MDGUIFB__append_to_dirname (&curr_dir, olddir, &ccont [selected_file][1]);
 
                 MDGUIFB__get_dir_contents (&ccont, &cnum, curr_dir == NULL ? olddir : curr_dir);
+
+                MDGUI__sort (&ccont, cnum, MDGUIFB__compare);
 
                 selected_file = 0;
                 first_line = 0;
@@ -478,11 +496,35 @@ bool key_pressed (char key[3]) {
 
         case MDGUI__FILEBOX:
 
+            if (selected_file < first_line && selected_file >= 0) first_line = selected_file;
+            else if (selected_file > first_line + MDGUI__file_box_h - 2) {
+
+                selected_file = first_line + MDGUI__file_box_h - 3;
+                redraw_file_box ();
+                break;
+            }
+
             if (selected_file < cnum - 1) selected_file++;
             if (selected_file == first_line + MDGUI__file_box_h - 2) first_line++;
 
-            // draw_all();
             redraw_file_box ();
+
+            break;
+
+        case MDGUI__PLAYLIST:
+
+            if (MDGUI__playlist_highlighted < MDGUI__playlist_first && MDGUI__playlist_highlighted >= 0) MDGUI__playlist_first = MDGUI__playlist_highlighted;
+            else if (MDGUI__playlist_highlighted > MDGUI__playlist_first + MDGUI__file_box_h - 2) {
+
+                MDGUI__playlist_highlighted = MDGUI__playlist_first + MDGUI__file_box_h - 3;
+                redraw_playlist_box ();
+                break;
+            }
+
+            if (MDGUI__playlist_highlighted < MDGUI__playlist_size - 1) MDGUI__playlist_highlighted++;
+            if (MDGUI__playlist_highlighted == MDGUI__playlist_first + MDGUI__file_box_h - 2) MDGUI__playlist_first++;
+
+            redraw_playlist_box ();
 
             break;
 
@@ -507,12 +549,27 @@ bool key_pressed (char key[3]) {
 
         case MDGUI__FILEBOX:
 
+            if (selected_file < first_line && selected_file >= 0) first_line = selected_file;
+            else if (selected_file > first_line + MDGUI__file_box_h - 2) selected_file = first_line + MDGUI__file_box_h - 2;
+
             if (selected_file < 0) selected_file = 0;
             if (selected_file > 0) selected_file--;
             if (selected_file == first_line - 1 && first_line != 0) first_line--;
 
-            // draw_all();
             redraw_file_box ();
+
+            break;
+
+        case MDGUI__PLAYLIST:
+
+            if (MDGUI__playlist_highlighted < MDGUI__playlist_first && MDGUI__playlist_highlighted >= 0) MDGUI__playlist_first = MDGUI__playlist_highlighted;
+            else if (MDGUI__playlist_highlighted > MDGUI__playlist_first + MDGUI__file_box_h - 2) MDGUI__playlist_highlighted = MDGUI__playlist_first + MDGUI__file_box_h - 2;
+
+            if (MDGUI__playlist_highlighted < 0) MDGUI__playlist_highlighted = 0;
+            if (MDGUI__playlist_highlighted > 0) MDGUI__playlist_highlighted--;
+            if (MDGUI__playlist_highlighted == MDGUI__playlist_first - 1 && MDGUI__playlist_first != 0) MDGUI__playlist_first--;
+
+            redraw_playlist_box ();
 
             break;
 
@@ -540,10 +597,19 @@ bool key_pressed (char key[3]) {
                 potential_component = MDGUI__METABOX;
                 break;
 
+            case MDGUI__METABOX:
+
+                potential_component = MDGUI__PLAYLIST;
+                break;
+
+            case MDGUI__PLAYLIST:
+
+                potential_component = MDGUI__PLAYLIST;
+                break;
+
             default:
 
                 break;
-
             }
 
             draw_all ();
@@ -573,6 +639,11 @@ bool key_pressed (char key[3]) {
                 potential_component = MDGUI__FILEBOX;
                 break;
 
+            case MDGUI__PLAYLIST:
+
+                potential_component = MDGUI__METABOX;
+                break;
+
             default:
 
                 break;
@@ -590,12 +661,12 @@ bool key_pressed (char key[3]) {
     return true;
 }
 
-void mdgui_completion ()
-{
+void mdgui_completion () {
+
     pthread_mutex_lock (&MDGUI__mutex);
 
-    if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE)
-    {
+    if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
+
         current_play_state = MDGUI__PROGRAM_EXIT;
 
         pthread_mutex_unlock (&MDGUI__mutex);
@@ -612,8 +683,8 @@ void mdgui_completion ()
             pthread_mutex_unlock (&MDGUI__mutex);
         }
     }
-    else
-    {
+    else {
+
         current_play_state = MDGUI__PROGRAM_EXIT;
         pthread_mutex_unlock (&MDGUI__mutex);
     }
@@ -621,11 +692,10 @@ void mdgui_completion ()
     MD__cleanup ();
 
     MDAL__close();
-
 }
 
-int main (int argc, char *argv[])
-{
+int main (int argc, char *argv[]) {
+
     MDAL__initialize (4096, 4, 4);
 
     pthread_mutex_init (&MDGUI__mutex, NULL);
@@ -634,9 +704,7 @@ int main (int argc, char *argv[])
 
     tinfo = MDGUI__get_terminal_information ();
 
-    MDGUI__file_box_w = (tinfo.cols - 3) / 3;
-    MDGUI__file_box_h = tinfo.lines - 6;
-    MDGUI__meta_box_w = MDGUI__file_box_w;//tinfo.cols / 3;
+    layout ();
 
     MDGUIFB__get_current_dir (&start_dir);
 
@@ -710,8 +778,8 @@ MD__filetype MD__get_extension (const char *filename) {
     return MD__UNKNOWN;
 }
 
-void MDGUI__draw_meta_box_wrap ()
-{
+void MDGUI__draw_meta_box_wrap () {
+
     MDGUI__meta_box_x = MDGUI__file_box_x + MDGUI__file_box_w;
 
     if (curr_metadata_loaded)

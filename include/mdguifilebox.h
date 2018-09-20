@@ -25,6 +25,8 @@ void    MDGUIFB__draw_file_box          (char *carray[], int cnum,
                                          int num_first, int num_highlighted, int num_selected,
                                          int term_pos_x, int term_pos_y,
                                          int width, int height);
+
+bool MDGUIFB__compare (char *string1, char *string2);
 #endif
 
 #define MDGUIFB
