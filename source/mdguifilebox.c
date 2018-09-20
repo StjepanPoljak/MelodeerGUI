@@ -237,10 +237,11 @@ void MDGUIFB__print_string_array (char *carray[], int cnum, bool dirflag,
 
             get_last_slash = k + 1;
             str_size -= get_last_slash;
+
             break;
         }
 
-        int chars_to_print = str_size >= width ? width : str_size;
+        int chars_to_print = str_size >= width ? (dirflag ? width : width - 1) : str_size;
 
         if (carray[i][0] == 'd' && dirflag) attron (A_BOLD);
 
