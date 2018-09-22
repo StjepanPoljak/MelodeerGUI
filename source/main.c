@@ -331,6 +331,77 @@ void MD__cleanup() {
     if (will_play) free (will_play);
 }
 
+void MDGUI__realloc_playlist (int old_playlist_size) {
+
+    if (MDGUI__playlist) {
+
+        for (int i = 0; i < old_playlist_size; i++) {
+
+            char *oldchars = MDGUI__playlist[i];
+
+            if (oldchars) free (oldchars);
+        }
+
+        MDGUI__playlist = realloc (MDGUI__playlist, sizeof (*MDGUI__playlist) * MDGUI__playlist_size);
+
+    } else MDGUI__playlist = malloc (sizeof (*MDGUI__playlist) * MDGUI__playlist_size);
+
+}
+
+void MDGUI__insert_current_to_playlist () {
+
+    int old_playlist_size = MDGUI__playlist_size;
+
+    char **temp = malloc (MDGUI__playlist_size * sizeof(*temp));
+
+    for (int i = 0; i < MDGUI__playlist_size; i++) {
+
+        int string_size = MDGUI__get_string_size(MDGUI__playlist[i]);
+
+        temp[i] = malloc (string_size + 1);
+
+        for (int j = 0; j <= string_size; j++) temp[i][j] = MDGUI__playlist[i][j];
+    }
+
+    MDGUI__playlist_size++;
+
+    MDGUI__realloc_playlist (old_playlist_size);
+
+    for (int i = 0; i < old_playlist_size; i++) {
+
+        if (temp[i]) free(temp[i]);
+    }
+
+    free (temp);
+}
+
+void MDGUI__generate_playlist (char *olddir) {
+
+    int old_playlist_size = MDGUI__playlist_size;
+
+    MDGUI__playlist_size = cnum - selected_file;
+
+    if (MDGUI__playlist_size > 0) {
+
+        MDGUI__playlist_current = 0;
+        MDGUI__playlist_first = 0;
+        MDGUI__playlist_highlighted = -1;
+
+        MDGUI__realloc_playlist (old_playlist_size);
+
+        for (int i = 0; i < MDGUI__playlist_size; i++) {
+
+            char *tempfn = NULL;
+
+            MDGUIFB__append_to_dirname (&tempfn, olddir, &ccont [i + selected_file][1]);
+
+            int curr_string_size = MDGUI__get_string_size (tempfn);
+
+            MDGUI__playlist[i] = tempfn;
+        }
+    }
+}
+
 bool key_pressed (char key[3]) {
 
     if (key[0] == 27 && key[1] == 0 && key[2] == 0) {
@@ -381,42 +452,7 @@ bool key_pressed (char key[3]) {
 
             case 'f':
 
-                ;
-
-                int old_playlist_size = MDGUI__playlist_size;
-
-                MDGUI__playlist_size = cnum - selected_file;
-
-                if (MDGUI__playlist_size > 0) {
-
-                    MDGUI__playlist_current = 0;
-                    MDGUI__playlist_first = 0;
-                    MDGUI__playlist_highlighted = -1;
-
-                    if (MDGUI__playlist) {
-
-                        for (int i = 0; i < old_playlist_size; i++) {
-
-                            char *oldchars = MDGUI__playlist[i];
-
-                            if (oldchars) free (oldchars);
-                        }
-
-                        MDGUI__playlist = realloc (MDGUI__playlist, sizeof (*MDGUI__playlist) * MDGUI__playlist_size);
-
-                    } else MDGUI__playlist = malloc (sizeof (*MDGUI__playlist) * MDGUI__playlist_size);
-
-                    for (int i = 0; i < MDGUI__playlist_size; i++) {
-
-                        char *tempfn = NULL;
-
-                        MDGUIFB__append_to_dirname (&tempfn, olddir, &ccont [i + selected_file][1]);
-
-                        int curr_string_size = MDGUI__get_string_size (tempfn);
-
-                        MDGUI__playlist[i] = tempfn;
-                    }
-                }
+                MDGUI__generate_playlist (olddir);
 
                 if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
 
