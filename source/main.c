@@ -169,7 +169,7 @@ void *MDGUI__play (void *data) {
         curr_playing = &current_file;
 
         MD__play (&current_file, decoder, MD__handle_metadata, MDGUI__started_playing,
-                  MDGUI__handle_error, MDGUI__play_complete);
+                  MDGUI__handle_error, NULL, MDGUI__play_complete);
 
     } else {
 
