@@ -44,6 +44,8 @@ void MDGUI__draw_meta_box_wrap ();
 void MDGUI__play_complete ();
 void draw_all ();
 
+MD__file_t *curr_playing = NULL;
+
 MDGUI__terminal tinfo;
 
 MDGUI__terminal previous_tinfo;
@@ -131,8 +133,6 @@ void MDGUI__handle_error (char *error) {
 
     return;
 }
-
-MD__file_t *curr_playing;
 
 void *MDGUI__play (void *data) {
 
@@ -754,6 +754,10 @@ void mdgui_completion () {
 }
 
 int main (int argc, char *argv[]) {
+
+    #ifdef MDGUI_DEBUG
+        MDLOG__setup (MDLOG__handle);
+    #endif
 
     MDAL__initialize (4096, 4, 4);
 

@@ -19,6 +19,7 @@ main.o: $(srcdir)/main.c
 .PHONY=clean
 clean:
 	-rm $(builddir)/* $(proj)
+	-rm *.log
 
 .PHONY=run
 run:

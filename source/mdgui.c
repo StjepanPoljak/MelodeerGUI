@@ -7,11 +7,24 @@ void MDGUI__clear_screen () {
     clear();
 }
 
-void MDGUI__log (char *log, MDGUI__terminal tinfo) {
+void MDGUI__log (const char *log, MDGUI__terminal tinfo) {
 
     move (tinfo.lines - 1, 0);
     clrtoeol ();
-    mvprintw (tinfo.lines - 1, 0, "%s", log);
+
+    int i = 0;
+
+    while (true) {
+
+        if (i >= tinfo.cols) break;
+
+        if (log[i] == 0) break;
+
+        mvprintw (tinfo.lines - 1, i, "%c", log[i]);
+
+        i++;
+    }
+
     refresh ();
 }
 

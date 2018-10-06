@@ -19,7 +19,7 @@ struct MDGUI__terminal {
 
 typedef struct MDGUI__terminal MDGUI__terminal;
 
-void MDGUI__log (char *log, MDGUI__terminal tinfo);
+void MDGUI__log (const char *log, MDGUI__terminal tinfo);
 
 MDGUI__terminal MDGUI__get_terminal_information ();
 
