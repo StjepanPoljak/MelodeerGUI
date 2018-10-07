@@ -91,8 +91,10 @@ int cnum = 0;
 char *curr_dir = NULL;
 char *start_dir = NULL;
 
-void redraw_file_box ()
-{
+bool MDGUI__stop_all_signal = false;
+
+void redraw_file_box () {
+
     MDGUIFB__draw_file_box (ccont, cnum,
                            potential_component == MDGUI__FILEBOX, true,
                            first_line, selected_file, -1,
@@ -220,6 +222,22 @@ void MDGUI__start_playing () {
 void MDGUI__play_complete () {
 
     pthread_mutex_lock (&MDGUI__mutex);
+
+    if (MDGUI__stop_all_signal) {
+
+        MDGUI__stop_all_signal = false;
+
+        current_play_state = MDGUI__NOT_PLAYING;
+
+        curr_metadata_loaded = false;
+
+        pthread_mutex_unlock (&MDGUI__mutex);
+
+        MDGUI__draw_meta_box_wrap ();
+
+        return;
+    }
+    
     if (current_play_state == MDGUI__PROGRAM_EXIT) {
 
         current_play_state = MDGUI__READY_TO_EXIT;
@@ -716,7 +734,31 @@ bool key_pressed (char key[3]) {
             break;
         }
     }
+    else if ((key[0] == 'p' || key[0] == 'P') && key[1] == 0 && key[2] == 0) {
+        // PAUSE
 
+        if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
+
+            MD__toggle_pause (curr_playing);
+            current_play_state = MD__is_paused (curr_playing) ? MDGUI__PAUSE : MDGUI__PLAYING;
+
+            MDGUI__log (current_play_state == MDGUI__PAUSE ? "Playing paused." : "Playing resumed.", tinfo);
+        }
+    }
+    else if ((key[0] == 's' || key[0] == 'S') && key[1] == 0 && key[2] == 0) {
+        // STOP
+
+        if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
+            
+            current_play_state = MDGUI__WAITING_TO_STOP;
+
+            MDGUI__stop_all_signal = true;
+
+            MD__stop (curr_playing);
+
+            MDGUI__log ("Waiting to stop.", tinfo);
+        }
+    }
     return true;
 }
 
