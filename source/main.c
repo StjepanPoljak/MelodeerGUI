@@ -74,7 +74,7 @@ int MDGUI__file_box_w = 20;
 int MDGUI__file_box_h = 20;
 
 int MDGUI__meta_box_x = 23;
-int MDGUI__meta_box_y = 2;
+int MDGUI__meta_box_y = 9;
 int MDGUI__meta_box_w = 20;
 int MDGUI__meta_box_h = 7;
 
@@ -100,17 +100,58 @@ void redraw_file_box () {
                            first_line, selected_file, -1,
                            MDGUI__file_box_x, MDGUI__file_box_y,
                            MDGUI__file_box_w, MDGUI__file_box_h);
+
+    if (selected_component == MDGUI__FILEBOX) attron (A_REVERSE);
+
+    mvprintw (MDGUI__file_box_y, MDGUI__file_box_x + (MDGUI__file_box_w - 7) / 2, " files ");
+    
+    if (selected_component == MDGUI__FILEBOX) attroff (A_REVERSE);
+
+    refresh ();
 }
 
-void redraw_playlist_box ()
-{
+void redraw_playlist_box () {
+
+    int MDGUI__playlist_box_x = MDGUI__meta_box_x + MDGUI__meta_box_w;
+
     MDGUIFB__draw_file_box (MDGUI__playlist, MDGUI__playlist_size,
                            potential_component == MDGUI__PLAYLIST, false,
                            MDGUI__playlist_first, MDGUI__playlist_highlighted,
                            MDGUI__playlist_current - 1,
-                           MDGUI__meta_box_x + MDGUI__meta_box_w,
+                           MDGUI__playlist_box_x,
                            MDGUI__file_box_y,
                            MDGUI__file_box_w, MDGUI__file_box_h);
+
+    if (selected_component == MDGUI__PLAYLIST) attron (A_REVERSE);
+
+    mvprintw (MDGUI__file_box_y, MDGUI__playlist_box_x + (MDGUI__file_box_w - 10) / 2, " playlist ");
+    
+    if (selected_component == MDGUI__PLAYLIST) attroff (A_REVERSE);
+
+    refresh ();
+
+}
+
+void redraw_logo () {
+    
+    char logo [76];
+    int line = 0;
+    int col = 0;
+
+    MD__get_logo (logo);
+
+    for (int i=0; i<75; i++) {
+        
+        if (logo[i] == '\n') {
+            line++;
+            col = 0;
+            continue;
+        }
+
+        mvprintw (1 + line, MDGUI__meta_box_x + (MDGUI__meta_box_w - 12) / 2 + col++, "%c", logo[i]);
+    }
+
+    refresh ();
 }
 
 void MDGUI__started_playing () {
@@ -325,6 +366,8 @@ void draw_all () {
     MDGUI__draw_meta_box_wrap ();
 
     redraw_playlist_box ();
+
+    redraw_logo ();
 }
 
 void MD__cleanup() {
@@ -898,7 +941,6 @@ void MDGUI__draw_meta_box_wrap () {
                                 potential_component == MDGUI__METABOX,
                                 MDGUI__meta_box_x, MDGUI__meta_box_y,
                                 MDGUI__meta_box_w, MDGUI__meta_box_h);
-
     else {
 
         MDGUI__draw_box (potential_component == MDGUI__METABOX,
@@ -914,9 +956,18 @@ void MDGUI__draw_meta_box_wrap () {
 
         refresh();
     }
+
+    if (selected_component == MDGUI__METABOX) attron (A_REVERSE);
+
+    mvprintw (MDGUI__meta_box_y, MDGUI__meta_box_x + (MDGUI__meta_box_w - 10) / 2, " metadata ");
+    
+    if (selected_component == MDGUI__METABOX) attroff (A_REVERSE);
+
+    refresh ();
 }
 
 void MD__handle_metadata (MD__metadata_t metadata) {
+
     curr_metadata = metadata;
     curr_metadata_loaded = true;
     MDGUI__draw_meta_box_wrap ();
