@@ -22,4 +22,7 @@ then
 	fi
 
 	cp "melodeergui" "exec/$MACHINE/"
+
+echo "Current executable state saved."
+
 fi

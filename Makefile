@@ -8,6 +8,7 @@ depsdir = include
 
 $(proj): $(objects)
 	gcc $(addprefix $(builddir)/,$^) $(addprefix -l,$(libs)) -o $(proj)
+	@-./save.sh
 
 %.o: $(srcdir)/%.c $(depsdir)/%.h
 	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir)
