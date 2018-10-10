@@ -94,16 +94,16 @@ void MDGUI__draw_box (bool box_selected, int term_pos_x, int term_pos_y, int wid
 
         for (int j=0; j<width; j++) {
 
-            if(j==0 || j==width-1) {
+            if (j==0 || j==width-1) {
 
-                if(i==0 || i==height-1) curr = '*';
+                if (i==0 || i==height-1) curr = '*';
                 else curr = '|';
             }
-            else if(i==0 || i==height-1) curr = '-';
+            else if (i==0 || i==height-1) curr = '-';
 
             else curr = ' ';
 
-            if (box_selected && curr != ' ') attron(A_BOLD);
+            if (box_selected && curr != ' ') attron (A_BOLD);
 
             mvprintw(i + term_pos_y, j + term_pos_x, "%c", curr);
 

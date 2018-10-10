@@ -150,7 +150,7 @@ bool MDGUIFB__get_dir_contents (char **carray[], int *cnum, char *curr_dir) {
             else {
 
                 char **old = malloc (sizeof (*old) * (last + 1));
-                
+
                 for (int j=0; j<last; j++) {
 
                     int old_j_string_size = MDGUI__get_string_size (result[j]);
@@ -271,6 +271,6 @@ void MDGUIFB__draw_file_box (char *carray[], int cnum, bool box_selected, bool d
 
     MDGUI__draw_box (box_selected, term_pos_x, term_pos_y, width, height);
     MDGUIFB__print_string_array (carray, cnum, dirflag,
-                                 num_first, height - 2, num_highlighted, num_selected,
-                                 term_pos_x + 1, term_pos_y + 1, width - 2);
+                                 num_first, height - 4, num_highlighted, num_selected,
+                                 term_pos_x + 2, term_pos_y + 2, width - 4);
 }

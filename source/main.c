@@ -15,7 +15,7 @@ enum MD__filetype { MD__FLAC, MD__WAV, MD__MP3, MD__UNKNOWN };
 
 typedef enum MD__filetype MD__filetype;
 
-enum MDGUI__component { MDGUI__NONE, MDGUI__FILEBOX, MDGUI__METABOX, MDGUI__PLAYLIST };
+enum MDGUI__component { MDGUI__NONE, MDGUI__FILEBOX, MDGUI__METABOX, MDGUI__PLAYLIST, MDGUI__LOGO };
 
 typedef enum MDGUI__component MDGUI__component;
 
@@ -104,7 +104,7 @@ void redraw_file_box () {
     if (selected_component == MDGUI__FILEBOX) attron (A_REVERSE);
 
     mvprintw (MDGUI__file_box_y, MDGUI__file_box_x + (MDGUI__file_box_w - 7) / 2, " files ");
-    
+
     if (selected_component == MDGUI__FILEBOX) attroff (A_REVERSE);
 
     refresh ();
@@ -125,7 +125,7 @@ void redraw_playlist_box () {
     if (selected_component == MDGUI__PLAYLIST) attron (A_REVERSE);
 
     mvprintw (MDGUI__file_box_y, MDGUI__playlist_box_x + (MDGUI__file_box_w - 10) / 2, " playlist ");
-    
+
     if (selected_component == MDGUI__PLAYLIST) attroff (A_REVERSE);
 
     refresh ();
@@ -133,23 +133,47 @@ void redraw_playlist_box () {
 }
 
 void redraw_logo () {
-    
+
     char logo [76];
     int line = 0;
     int col = 0;
 
     MD__get_logo (logo);
 
+    if (potential_component == MDGUI__LOGO) attron (A_BOLD);
+
+    bool reversing = false;
+    int lastrev = -1;
+
     for (int i=0; i<75; i++) {
-        
+
         if (logo[i] == '\n') {
+
+            if (line == 4 && potential_component == MDGUI__LOGO) attroff (A_BOLD);
+            if (line == 5 && potential_component == MDGUI__LOGO) attron (A_BOLD);
             line++;
+
             col = 0;
             continue;
         }
 
+        if (logo[i] == '~' && selected_component == MDGUI__LOGO && !reversing) {
+            reversing = true;
+            lastrev = i;
+            attron (A_REVERSE);
+        }
+
         mvprintw (1 + line, MDGUI__meta_box_x + (MDGUI__meta_box_w - 12) / 2 + col++, "%c", logo[i]);
+
+
+        if (logo[i] == '~' && i != lastrev && selected_component == MDGUI__LOGO && reversing) {
+            reversing = false;
+            attroff (A_REVERSE);
+        }
+
     }
+
+    if (potential_component == MDGUI__LOGO) attroff (A_BOLD);
 
     refresh ();
 }
@@ -224,7 +248,6 @@ void *MDGUI__play (void *data) {
     return NULL;
 }
 
-
 char *will_play = NULL;
 
 void MDGUI__start_playing () {
@@ -278,7 +301,7 @@ void MDGUI__play_complete () {
 
         return;
     }
-    
+
     if (current_play_state == MDGUI__PROGRAM_EXIT) {
 
         current_play_state = MDGUI__READY_TO_EXIT;
@@ -344,10 +367,9 @@ void *terminal_change (void *data) {
 
             draw_all ();
 
-            unsigned int tinfo_size = snprintf(NULL, 0, "Changed size to %d x %d.", tinfo.cols, tinfo.lines) + 1;
-            char *tinfo_string = malloc (sizeof(*tinfo_string) * tinfo_size);
-            snprintf(tinfo_string, tinfo_size, "Changed size to %d x %d.", tinfo.cols, tinfo.lines);
-
+            unsigned int tinfo_size = snprintf (NULL, 0, "Changed size to %d x %d.", tinfo.cols, tinfo.lines) + 1;
+            char *tinfo_string = malloc (sizeof (*tinfo_string) * tinfo_size);
+            snprintf (tinfo_string, tinfo_size, "Changed size to %d x %d.", tinfo.cols, tinfo.lines);
 
             MDGUI__log (tinfo_string, tinfo);
         }
@@ -383,7 +405,7 @@ void MD__cleanup() {
 
     if (ccont) {
 
-        for (int i=0;i<cnum;i++) if (ccont[i]) free(ccont[i]);
+        for (int i=0; i<cnum; i++) if (ccont[i]) free (ccont[i]);
         free (ccont);
     }
 
@@ -603,7 +625,13 @@ bool key_pressed (char key[3]) {
 
         case MDGUI__NONE:
 
-            potential_component = MDGUI__FILEBOX;
+            if (potential_component == MDGUI__LOGO)
+
+                potential_component = MDGUI__METABOX;
+
+            else if (potential_component == MDGUI__NONE)
+
+                potential_component = MDGUI__FILEBOX;
 
             draw_all();
 
@@ -612,15 +640,15 @@ bool key_pressed (char key[3]) {
         case MDGUI__FILEBOX:
 
             if (selected_file < first_line && selected_file >= 0) first_line = selected_file;
-            else if (selected_file > first_line + MDGUI__file_box_h - 2) {
+            else if (selected_file > first_line + MDGUI__file_box_h - 4) {
 
-                selected_file = first_line + MDGUI__file_box_h - 3;
+                selected_file = first_line + MDGUI__file_box_h - 5;
                 redraw_file_box ();
                 break;
             }
 
             if (selected_file < cnum - 1) selected_file++;
-            if (selected_file == first_line + MDGUI__file_box_h - 2) first_line++;
+            if (selected_file == first_line + MDGUI__file_box_h - 4) first_line++;
 
             redraw_file_box ();
 
@@ -660,7 +688,13 @@ bool key_pressed (char key[3]) {
 
         case MDGUI__NONE:
 
-            potential_component = MDGUI__FILEBOX;
+            if (potential_component == MDGUI__METABOX)
+
+                potential_component = MDGUI__LOGO;
+
+            else if (potential_component == MDGUI__NONE)
+
+                potential_component = MDGUI__FILEBOX;
 
             draw_all();
 
@@ -669,7 +703,7 @@ bool key_pressed (char key[3]) {
         case MDGUI__FILEBOX:
 
             if (selected_file < first_line && selected_file >= 0) first_line = selected_file;
-            else if (selected_file > first_line + MDGUI__file_box_h - 2) selected_file = first_line + MDGUI__file_box_h - 2;
+            else if (selected_file > first_line + MDGUI__file_box_h - 4) selected_file = first_line + MDGUI__file_box_h - 4;
 
             if (selected_file < 0) selected_file = 0;
             if (selected_file > 0) selected_file--;
@@ -717,6 +751,11 @@ bool key_pressed (char key[3]) {
                 potential_component = MDGUI__METABOX;
                 break;
 
+            case MDGUI__LOGO:
+
+                potential_component = MDGUI__PLAYLIST;
+                break;
+
             case MDGUI__METABOX:
 
                 potential_component = MDGUI__PLAYLIST;
@@ -750,6 +789,11 @@ bool key_pressed (char key[3]) {
             switch (potential_component) {
 
             case MDGUI__NONE:
+
+                potential_component = MDGUI__FILEBOX;
+                break;
+
+            case MDGUI__LOGO:
 
                 potential_component = MDGUI__FILEBOX;
                 break;
@@ -792,7 +836,7 @@ bool key_pressed (char key[3]) {
         // STOP
 
         if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
-            
+
             current_play_state = MDGUI__WAITING_TO_STOP;
 
             MDGUI__stop_all_signal = true;
@@ -960,7 +1004,7 @@ void MDGUI__draw_meta_box_wrap () {
     if (selected_component == MDGUI__METABOX) attron (A_REVERSE);
 
     mvprintw (MDGUI__meta_box_y, MDGUI__meta_box_x + (MDGUI__meta_box_w - 10) / 2, " metadata ");
-    
+
     if (selected_component == MDGUI__METABOX) attroff (A_REVERSE);
 
     refresh ();
