@@ -5,7 +5,7 @@
 #include <melodeer/mdcore.h>
 #include <melodeer/mdflac.h>
 #include <melodeer/mdwav.h>
-#include <melodeer/mdlame.h>
+#include <melodeer/mdmpg123.h>
 
 #include "mdgui.h"
 #include "mdguifilebox.h"
@@ -222,7 +222,7 @@ void *MDGUI__play (void *data) {
         break;
 
     case MD__MP3:
-        decoder = MDLAME__decoder;
+        decoder = MDMPG123__decoder;
         break;
 
     default:
