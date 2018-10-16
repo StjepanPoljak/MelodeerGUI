@@ -4,6 +4,7 @@ void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI
 void mdgui_completion (MDGUI__manager_t *mdgui);
 bool key_pressed (MDGUI__manager_t *mdgui, char key[3]);
 void *terminal_change (void *data);
+void MDGUI__draw_logo (MDGUI__manager_t *mdgui);
 
 int MDGUI__get_box_width (MDGUI__manager_t *mdgui) {
 
@@ -23,9 +24,11 @@ int MDGUI__get_box_x (MDGUI__manager_t *mdgui, int order) {
 bool MDGUI__init (MDGUI__manager_t *mdgui) {
 
     mdgui->top = 2;
-    mdgui->bottom = 2;
+    mdgui->bottom = 3;
     mdgui->left = 2;
     mdgui->right = 2;
+    mdgui->meta_top = 7;
+    mdgui->meta_bottom = 2;
 
     MDAL__initialize (4096, 4, 4);
 
@@ -34,6 +37,7 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
     mdgui->tinfo = MDGUI__get_terminal_information ();
 
     mdgui->curr_playing = NULL;
+    mdgui->curr_in_playlist = -1;
 
     mdgui->selected_component = MDGUI__NONE;
     mdgui->potential_component = MDGUI__NONE;
@@ -44,11 +48,11 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
     int box_width = MDGUI__get_box_width (mdgui);
     int box_height = MDGUI__get_box_height (mdgui);
 
-    mdgui->filebox = MDGUIFB__create ("files", MDGUI__get_box_x (mdgui, 0), mdgui->top, box_width, box_height);
-    
-    mdgui->metabox = MDGUIMB__create ("metadata", MDGUI__get_box_x (mdgui, 1), mdgui->top + 7, box_width, box_height - 7);
+    mdgui->filebox = MDGUIFB__create ("files", MDGUI__get_box_x (mdgui, 0), mdgui->top, box_height, box_width);
 
-    mdgui->playlistbox = MDGUILB__create ("playlist", MDGUI__get_box_x (mdgui, 2), mdgui->top, box_width, box_height, false);
+    mdgui->metabox = MDGUIMB__create ("metadata", MDGUI__get_box_x (mdgui, 1), mdgui->top + mdgui->meta_top, box_height - mdgui->meta_bottom - mdgui->meta_top, box_width);
+
+    mdgui->playlistbox = MDGUILB__create ("playlist", MDGUI__get_box_x (mdgui, 2), mdgui->top, box_height, box_width, false);
 
     MDGUI__play_state volatile current_play_state = MDGUI__NOT_PLAYING;
 
@@ -58,16 +62,20 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
 
     curs_set (0);
 
+    MDGUI__draw (mdgui);
+
     MDGUI__log ("Use arrow keys to move, ENTER to select and ESC to deselect/exit.", mdgui->tinfo);
 
     if (pthread_create (&mdgui->terminal_thread, NULL, terminal_change, mdgui)) {
-        
+
         return false;
     }
 
     MDGUI__wait_for_keypress (mdgui, key_pressed, mdgui_completion);
 
     pthread_join (mdgui->terminal_thread, NULL);
+
+
 
     return true;
 }
@@ -130,7 +138,7 @@ void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI
 
     tcgetattr (fileno(stdin), &orig_term_attr);
     memcpy (&new_term_attr, &orig_term_attr, sizeof (struct termios));
-    new_term_attr.c_lflag &= ~(ICANON | ECHO | ECHOE | ECHOK | ECHONL | ECHOPRT | ECHOKE | ICRNL);
+    new_term_attr.c_lflag &= ~(ICANON | ECHO);
     tcsetattr (fileno(stdin), TCSANOW, &new_term_attr);
 
     fd_set input_set, output_set;
@@ -157,13 +165,21 @@ void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI
 
     tcsetattr (fileno (stdin), TCSANOW, &orig_term_attr);
 
-    clear ();
-
     curs_set (1);
+
+    clear ();
 
     endwin();
 
     return;
+}
+
+void MDGUI__draw (MDGUI__manager_t *mdgui) {
+
+    MDGUI__draw_logo (mdgui);
+    MDGUIFB__draw (&mdgui->filebox);
+    MDGUILB__draw (&mdgui->playlistbox, mdgui->curr_in_playlist);
+    MDGUIMB__draw (&mdgui->metabox);
 }
 
 bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
@@ -263,22 +279,6 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
             break;
 
         case MDGUI__PLAYLIST:
-            //
-            // if (MDGUI__playlist_highlighted < MDGUI__playlist_first
-            // &&  MDGUI__playlist_highlighted >= 0)
-            //     MDGUI__playlist_first = MDGUI__playlist_highlighted;
-            //
-            // else if (MDGUI__playlist_highlighted > MDGUI__playlist_first + MDGUI__file_box_h - 2) {
-            //
-            //     MDGUI__playlist_highlighted = MDGUI__playlist_first + MDGUI__file_box_h - 3;
-            //     // redraw_playlist_box ();
-            //     break;
-            // }
-            //
-            // if (MDGUI__playlist_highlighted < MDGUI__playlist_size - 1) MDGUI__playlist_highlighted++;
-            // if (MDGUI__playlist_highlighted == MDGUI__playlist_first + MDGUI__file_box_h - 2) MDGUI__playlist_first++;
-            //
-            // // redraw_playlist_box ();
 
             break;
 
@@ -451,6 +451,24 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
     return true;
 }
 
+void MDGUI__update_size (MDGUI__manager_t *mdgui) {
+
+    int box_width = MDGUI__get_box_width (mdgui);
+    int box_height = MDGUI__get_box_height (mdgui);
+
+    mdgui->filebox.listbox.box.x = MDGUI__get_box_x (mdgui, 0);
+    mdgui->filebox.listbox.box.height = box_height;
+    mdgui->filebox.listbox.box.width = box_width;
+
+    mdgui->metabox.box.x = MDGUI__get_box_x (mdgui, 1);
+    mdgui->metabox.box.height = box_height - mdgui->meta_top;
+    mdgui->metabox.box.width = box_width;
+
+    mdgui->playlistbox.box.x = MDGUI__get_box_x (mdgui, 2);
+    mdgui->playlistbox.box.height = box_height;
+    mdgui->playlistbox.box.width = box_width;
+}
+
 void *terminal_change (void *data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
@@ -476,21 +494,23 @@ void *terminal_change (void *data) {
 
         if (mdgui->tinfo.cols != previous_tinfo.cols || mdgui->tinfo.lines != previous_tinfo.lines) {
 
-            // layout ();
+            MDGUI__update_size (mdgui);
 
             if (mdgui->filebox.listbox.box.height >= mdgui->filebox.listbox.str_array.cnum) mdgui->filebox.listbox.num_first = 0;
 
-            // if (MDGUI__file_box_x >= MDGUI__playlist_size) MDGUI__playlist_first = 0;
+            if (mdgui->playlistbox.box.height >= mdgui->playlistbox.str_array.cnum) mdgui->playlistbox.num_first = 0;
 
             clear();
 
-            // draw_all ();
+            MDGUI__draw (mdgui);
 
             unsigned int tinfo_size = snprintf (NULL, 0, "Changed size to %d x %d.", mdgui->tinfo.cols, mdgui->tinfo.lines) + 1;
             char *tinfo_string = malloc (sizeof (*tinfo_string) * tinfo_size);
             snprintf (tinfo_string, tinfo_size, "Changed size to %d x %d.", mdgui->tinfo.cols, mdgui->tinfo.lines);
 
             MDGUI__log (tinfo_string, mdgui->tinfo);
+
+            previous_tinfo = mdgui->tinfo;
         }
 
         MDGUI__mutex_unlock (mdgui);
@@ -532,4 +552,47 @@ void mdgui_completion (MDGUI__manager_t *mdgui) {
     MDAL__close();
 }
 
+void MDGUI__draw_logo (MDGUI__manager_t *mdgui) {
 
+    char logo [76];
+    int line = 0;
+    int col = 0;
+
+    MD__get_logo (logo);
+
+    if (mdgui->potential_component == MDGUI__LOGO) attron (A_BOLD);
+
+    bool reversing = false;
+    int lastrev = -1;
+
+    for (int i=0; i<75; i++) {
+
+        if (logo[i] == '\n') {
+
+            if (line == 4 && mdgui->potential_component == MDGUI__LOGO) attroff (A_BOLD);
+            if (line == 5 && mdgui->potential_component == MDGUI__LOGO) attron (A_BOLD);
+            line++;
+
+            col = 0;
+            continue;
+        }
+
+        if (logo[i] == '~' && mdgui->selected_component == MDGUI__LOGO && !reversing) {
+            reversing = true;
+            lastrev = i;
+            attron (A_REVERSE);
+        }
+
+        mvprintw (1 + line, mdgui->metabox.box.x + (mdgui->metabox.box.width - 12) / 2 + col++, "%c", logo[i]);
+
+        if (logo[i] == '~' && i != lastrev && mdgui->selected_component == MDGUI__LOGO && reversing) {
+            reversing = false;
+            attroff (A_REVERSE);
+        }
+
+    }
+
+    if (mdgui->potential_component == MDGUI__LOGO) attroff (A_BOLD);
+
+    refresh ();
+}

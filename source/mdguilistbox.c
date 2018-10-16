@@ -14,9 +14,7 @@ MDGUI__listbox_t MDGUILB__create (char *name, int x, int y,
 
     listbox.on_return = NULL;
 
-    MDGUI__str_array_t new_str_array;
-
-    MDGUI__str_array_init (&new_str_array);
+    MDGUI__str_array_init (&listbox.str_array);
 
     return listbox;
 }
@@ -73,23 +71,9 @@ void MDGUILB__down_arrow (MDGUI__listbox_t *listbox) {
         listbox->num_first++;
 }
 
-void MDGUILB__init (MDGUI__listbox_t *listbox, int x, int y,
-                    int height, int width, bool fd_prefix) {
-
-    MDGUI__str_array_init (&listbox->str_array);
-
-    listbox->num_first = 0;
-    listbox->num_selected = -1;
-
-    listbox->box.x = x;
-    listbox->box.y = y;
-    listbox->box.height = height;
-    listbox->box.width = width;
-
-    listbox->fd_prefix = fd_prefix;
-}
-
 void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_highlighted) {
+
+    if (listbox->str_array.cnum == 0) return;
 
     int line = 0;
 
@@ -134,7 +118,7 @@ void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_highlighted) {
 
         for (int k = 0; k < maxprint; k++)
 
-            mvprintw (listbox->box.y + j, listbox->box.x + k, "%c",
+            mvprintw (listbox->box.y + j + 2, listbox->box.x + k + 2, "%c",
                       listbox->str_array.carray[i][get_last_slash + (dirflag ? k+1 : k)]);
 
         if (i == num_highlighted) attroff (A_REVERSE);

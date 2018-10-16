@@ -68,12 +68,16 @@ struct MDGUI__manager {
     MDGUI__listbox_t playlistbox;
     MDGUI__meta_box_t metabox;
 
+    int curr_in_playlist;
+
     MDGUI__play_state volatile current_play_state;
 
     int top;
     int bottom;
     int left;
     int right;
+    int meta_top;
+    int meta_bottom;
 
     bool stop_all_signal;
 };
@@ -83,6 +87,12 @@ typedef struct MDGUI__manager MDGUI__manager_t;
 bool            MDGUI__init                     (MDGUI__manager_t *mdgui);
 
 void            MDGUI__log                      (const char *log, MDGUI__terminal tinfo);
+
+void            MDGUI__draw                     (MDGUI__manager_t *mdgui);
+
+void            MDGUI__mutex_lock               (MDGUI__manager_t *mdgui);
+
+void            MDGUI__mutex_unlock             (MDGUI__manager_t *mdgui);
 
 MDGUI__terminal MDGUI__get_terminal_information ();
 

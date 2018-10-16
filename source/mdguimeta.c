@@ -8,15 +8,16 @@ MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int wid
 
     new_box.metadata_present = false;
 
-    new_box.box = MDGUI__box_create (name, x, y, width, height);
+    new_box.box = MDGUI__box_create (name, x, y, height, width);
 
     return new_box;
 }
 
-
-void MDGUIMD__draw_meta_box (MDGUI__meta_box_t *metabox) {
+void MDGUIMB__draw (MDGUI__meta_box_t *metabox) {
 
     MDGUI__draw_box (&metabox->box);
+
+    if (!metabox->metadata_present) return;
 
     unsigned int total_samples  = metabox->metadata.total_samples;
     unsigned int channels = metabox->metadata.channels;

@@ -31,7 +31,10 @@ void MDGUI__str_array_append (MDGUI__str_array_t *str_array, char *string) {
         temp = malloc (sizeof (*(str_array->carray)) * str_array->csize);
 
         for (int i=0; i<prev_cnum; i++) {
-
+    //
+    // MDGUI__init (&mdgui);
+    //
+    // MDGUI__draw (&mdgui);
             int str_size = MDGUI__get_string_size (str_array->carray[i]) + 1;
 
             temp[i] = malloc (sizeof (**(str_array->carray)) * str_size);

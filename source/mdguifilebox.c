@@ -32,6 +32,8 @@ MDGUI__file_box_t MDGUIFB__create (char *name, int x, int y, int height, int wid
 
     MDGUIFB__get_current_dir (&new_fb);
 
+    MDGUIFB__get_dir_contents (&new_fb);
+
     return new_fb;
 }
 
@@ -156,7 +158,7 @@ bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 
     if (d) {
 
-        MDGUI__str_array_empty (&filebox->listbox.str_array);
+        //MDGUI__str_array_empty (&filebox->listbox.str_array);
 
         while ((dir = readdir(d)) != NULL) {
 
@@ -184,7 +186,7 @@ bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
     return false;
 }
 
-void MDGUIFB__draw_file_box (MDGUI__file_box_t *filebox) {
+void MDGUIFB__draw (MDGUI__file_box_t *filebox) {
 
     MDGUILB__draw (&filebox->listbox, -1);
 }
