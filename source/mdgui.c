@@ -328,10 +328,16 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         case MDGUI__FILEBOX:
 
+            MDGUILB__down_arrow (&mdgui->filebox.listbox);
+            MDGUILB__print_out (&mdgui->filebox.listbox, -1);
+
             break;
 
         case MDGUI__PLAYLIST:
 
+            MDGUILB__down_arrow (&mdgui->playlistbox);
+            MDGUILB__print_out (&mdgui->playlistbox, mdgui->curr_in_playlist);
+            
             break;
 
         default:
@@ -365,9 +371,15 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         case MDGUI__FILEBOX:
 
+            MDGUILB__up_arrow (&mdgui->filebox.listbox);
+            MDGUILB__print_out (&mdgui->filebox.listbox, -1);
+
             break;
 
         case MDGUI__PLAYLIST:
+
+            MDGUILB__up_arrow (&mdgui->playlistbox);
+            MDGUILB__print_out (&mdgui->playlistbox, mdgui->curr_in_playlist);
 
             break;
 

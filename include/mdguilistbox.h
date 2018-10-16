@@ -25,7 +25,9 @@ void                MDGUILB__up_arrow       (MDGUI__listbox_t *listbox);
 void                MDGUILB__down_arrow     (MDGUI__listbox_t *listbox);
 void				MDGUILB__return         (MDGUI__listbox_t *listbox);
 
-void                MDGUILB__draw           (MDGUI__listbox_t *listbox, int num_highlighted);
+void                MDGUILB__print_out      (MDGUI__listbox_t *listbox, int num_selected);
+
+void                MDGUILB__draw           (MDGUI__listbox_t *listbox, int num_selected);
 
 void                MDGUILB__deinit         (MDGUI__listbox_t *listbox);
 

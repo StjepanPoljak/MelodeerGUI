@@ -20,7 +20,7 @@ void        MDGUI__str_array_append         (MDGUI__str_array_t *str_array, char
 
 int         MDGUI__get_string_size          (char *string);
 
-bool        MDGUI__compare                  (char *string1, char *string2);
+char        MDGUI__small_cap                (char c);
 
 void        MDGUI__sort                     (MDGUI__str_array_t *str_array,
                                              bool(*compare_f)(char *, char*));

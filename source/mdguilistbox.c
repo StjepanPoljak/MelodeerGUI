@@ -71,7 +71,7 @@ void MDGUILB__down_arrow (MDGUI__listbox_t *listbox) {
         listbox->num_first++;
 }
 
-void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_highlighted) {
+void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_selected) {
 
     if (listbox->str_array.cnum == 0) return;
 
@@ -82,7 +82,7 @@ void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_highlighted) {
     int num_first = listbox->num_first;
     bool dirflag = listbox->fd_prefix;
     int width = listbox->box.width;
-    int num_selected = listbox->num_selected;
+    int num_highlighted = listbox->num_selected;
 
     int start = num_first + num_lines >= cnum && cnum - num_lines >= 0
               ? cnum - num_lines

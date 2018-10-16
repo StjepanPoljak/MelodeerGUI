@@ -147,6 +147,26 @@ void MDGUIFB__get_parent_dir (char **new, char *curr) {
 
 }
 
+bool MDGUI__compare (char *string1, char *string2) {
+
+    int string1_size = MDGUI__get_string_size (string1);
+    int string2_size = MDGUI__get_string_size (string2);
+
+    int min_size = string1_size > string2_size ? string2_size : string1_size;
+
+    for (int i = 0; i < min_size; i++) {
+
+        char curr1 = MDGUI__small_cap(string1[i]);
+        char curr2 = MDGUI__small_cap(string2[i]);
+
+        if (curr1 == curr2) continue;
+
+        return (curr1 > curr2);
+    }
+
+    return string1_size > string2_size;
+}
+
 bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 
     DIR *d;
@@ -158,7 +178,7 @@ bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 
     if (d) {
 
-        //MDGUI__str_array_empty (&filebox->listbox.str_array);
+        MDGUI__str_array_empty (&filebox->listbox.str_array);
 
         while ((dir = readdir(d)) != NULL) {
 
@@ -177,6 +197,8 @@ bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 
             free (tempdir);
         }
+
+        MDGUI__sort (&filebox->listbox.str_array, MDGUI__compare);
 
         closedir (d);
 
