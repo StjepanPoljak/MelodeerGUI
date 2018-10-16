@@ -2,7 +2,7 @@
 
 #include "mdguistrarr.h"
 
-MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int width, int height) {
+MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int width) {
 
     MDGUI__meta_box_t new_box;
 

@@ -12,6 +12,8 @@ MDGUI__listbox_t MDGUILB__create (char *name, int x, int y,
 
     listbox.fd_prefix = fd_prefix;
 
+    listbox.on_return = NULL;
+
     MDGUI__str_array_t new_str_array;
 
     MDGUI__str_array_init (&new_str_array);
@@ -19,6 +21,10 @@ MDGUI__listbox_t MDGUILB__create (char *name, int x, int y,
     return listbox;
 }
 
+void MDGUILB__return (MDGUI__listbox_t *listbox) {
+
+    if (listbox->on_return) listbox->on_return (listbox);
+}
 
 int MDGUILB__num_lines (MDGUI__listbox_t *listbox) {
 

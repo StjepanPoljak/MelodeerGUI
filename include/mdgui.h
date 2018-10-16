@@ -9,14 +9,20 @@
 #include <unistd.h>
 #include <pthread.h>
 
+#include <melodeer/mdcore.h>
+
 #include "mdguistrarr.h"
-#include "mdguibox.h"
+#include "mdguifilebox.h"
+#include "mdguimeta.h"
+#include "mdguilistbox.h"
 
 struct MDGUI__terminal {
 
     int cols;
     int lines;
 };
+
+typedef struct  MDGUI__terminal MDGUI__terminal;
 
 enum            MDGUI__component {
 
@@ -42,14 +48,43 @@ enum            MDGUI__play_state {
 
 typedef enum    MDGUI__play_state MDGUI__play_state;
 
-typedef struct  MDGUI__terminal MDGUI__terminal;
+struct MDGUI__manager {
+
+    MD__file_t *curr_playing;
+
+    MDGUI__terminal tinfo;
+
+    MDGUI__component selected_component;
+    MDGUI__component potential_component;
+    MDGUI__component previous_potential_component;
+
+    pthread_t melodeer_thread;
+
+    pthread_t terminal_thread;
+
+    pthread_mutex_t mutex;
+
+    MDGUI__file_box_t filebox;
+    MDGUI__listbox_t playlistbox;
+    MDGUI__meta_box_t metabox;
+
+    MDGUI__play_state volatile current_play_state;
+
+    int top;
+    int bottom;
+    int left;
+    int right;
+
+    bool stop_all_signal;
+};
+
+typedef struct MDGUI__manager MDGUI__manager_t;
+
+bool            MDGUI__init                     (MDGUI__manager_t *mdgui);
 
 void            MDGUI__log                      (const char *log, MDGUI__terminal tinfo);
 
 MDGUI__terminal MDGUI__get_terminal_information ();
-
-void            MDGUI__wait_for_keypress        (bool (key_pressed)(char [3]),
-                                                 void (on_completion) (void));
 
 #endif
 

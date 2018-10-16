@@ -35,10 +35,11 @@ void MDGUI__play_complete ();
 // void draw_all ();
 
 MD__file_t *curr_playing = NULL;
+MDGUI__terminal previous_tinfo;
+
 
 MDGUI__terminal tinfo;
 
-MDGUI__terminal previous_tinfo;
 pthread_mutex_t MDGUI__mutex;
 
 // -1 - none selected
@@ -81,7 +82,6 @@ int cnum = 0;
 char *curr_dir = NULL;
 char *start_dir = NULL;
 
-bool MDGUI__stop_all_signal = false;
 //
 // void redraw_file_box () {
 //
@@ -266,20 +266,20 @@ void MDGUI__play_complete () {
 
     pthread_mutex_lock (&MDGUI__mutex);
 
-    if (MDGUI__stop_all_signal) {
+    // if (MDGUI__stop_all_signal) {
 
-        MDGUI__stop_all_signal = false;
+    //     MDGUI__stop_all_signal = false;
 
-        current_play_state = MDGUI__NOT_PLAYING;
+    //     current_play_state = MDGUI__NOT_PLAYING;
 
-        curr_metadata_loaded = false;
+    //     curr_metadata_loaded = false;
 
-        pthread_mutex_unlock (&MDGUI__mutex);
+    //     pthread_mutex_unlock (&MDGUI__mutex);
 
-        MDGUI__draw_meta_box_wrap ();
+    //     MDGUI__draw_meta_box_wrap ();
 
-        return;
-    }
+    //     return;
+    // }
 
     if (current_play_state == MDGUI__PROGRAM_EXIT) {
 
@@ -311,53 +311,7 @@ void MDGUI__play_complete () {
 //     MDGUI__meta_box_w = MDGUI__file_box_w;
 // }
 
-void *terminal_change (void *data) {
 
-    previous_tinfo = tinfo;
-
-    struct timespec tsp = {0,10000};
-
-    while (true) {
-
-        nanosleep(&tsp, NULL);
-
-        pthread_mutex_lock (&MDGUI__mutex);
-
-        if (current_play_state == MDGUI__PROGRAM_EXIT) {
-
-            pthread_mutex_unlock (&MDGUI__mutex);
-
-            break;
-        }
-
-        tinfo = MDGUI__get_terminal_information ();
-
-        if (tinfo.cols != previous_tinfo.cols || tinfo.lines != previous_tinfo.lines) {
-
-            previous_tinfo = tinfo;
-
-            // layout ();
-
-            // if (MDGUI__file_box_h >= cnum) first_line = 0;
-
-            // if (MDGUI__file_box_x >= MDGUI__playlist_size) MDGUI__playlist_first = 0;
-
-            clear();
-
-            // draw_all ();
-
-            unsigned int tinfo_size = snprintf (NULL, 0, "Changed size to %d x %d.", tinfo.cols, tinfo.lines) + 1;
-            char *tinfo_string = malloc (sizeof (*tinfo_string) * tinfo_size);
-            snprintf (tinfo_string, tinfo_size, "Changed size to %d x %d.", tinfo.cols, tinfo.lines);
-
-            MDGUI__log (tinfo_string, tinfo);
-        }
-
-        pthread_mutex_unlock (&MDGUI__mutex);
-    }
-
-    return NULL;
-}
 
 
 // void draw_all () {
@@ -464,423 +418,13 @@ void MD__cleanup() {
 //     }
 // }
 
-bool key_pressed (char key[3]) {
 
-    if (key[0] == 27 && key[1] == 0 && key[2] == 0) {
-
-        // ESCAPE
-
-        switch (selected_component) {
-
-        case MDGUI__NONE:
-
-            return false;
-
-        default:
-
-            selected_component = MDGUI__NONE;
-
-            potential_component = previous_potential_component;
-
-            // draw_all ();
-        }
-
-    }
-    else if ((key [0] == 13 || key [0] == 10) && key [1] == 0 && key[2] == 0) {
-
-        // RETURN
-
-        switch (selected_component) {
-
-        case MDGUI__NONE:
-
-            selected_component = potential_component;
-
-            previous_potential_component = potential_component;
-
-            potential_component = MDGUI__NONE;
-
-            // draw_all();
-
-            break;
-
-        case MDGUI__FILEBOX:
-
-            if (current_play_state == MDGUI__WAITING_TO_STOP || current_play_state == MDGUI__INITIALIZING) break;
-
-            char *olddir = curr_dir == NULL ? start_dir : curr_dir;
-
-            switch (ccont[selected_file][0]) {
-
-            case 'f':
-
-                // MDGUI__generate_playlist (olddir);
-
-                if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
-
-                    current_play_state = MDGUI__WAITING_TO_STOP;
-
-                    MD__stop (curr_playing);
-
-                    MDGUI__log ("Waiting to stop.", tinfo);
-
-                } else MDGUI__start_playing ();
-
-                break;
-
-            case 'd':
-
-                if (MDGUI__get_string_size (ccont[selected_file]) == 2) {
-
-                    if (ccont[selected_file][1] == '.') break;
-                }
-
-                if (MDGUI__get_string_size (ccont[selected_file]) == 3) {
-
-                    if (ccont[selected_file][1] == '.' && ccont[selected_file][2] == '.') {
-
-                        MDGUIFB__get_parent_dir (&curr_dir, olddir);
-
-                        // MDGUIFB__get_dir_contents (&ccont, &cnum, curr_dir == NULL ? olddir : curr_dir);
-
-                        selected_file = 0;
-                        first_line = 0;
-
-                        // redraw_file_box ();
-
-                        break;
-                    }
-                }
-
-                MDGUIFB__append_to_dirname (&curr_dir, olddir, &ccont [selected_file][1]);
-
-                // MDGUIFB__get_dir_contents (&ccont, &cnum, curr_dir == NULL ? olddir : curr_dir);
-
-                selected_file = 0;
-                first_line = 0;
-
-                // redraw_file_box ();
-
-                break;
-
-            default:
-
-                break;
-            }
-
-            break;
-
-        case MDGUI__PLAYLIST:
-
-            if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
-
-                current_play_state = MDGUI__WAITING_TO_STOP;
-
-                MD__stop (curr_playing);
-
-                MDGUI__playlist_current = MDGUI__playlist_highlighted;
-
-                MDGUI__log ("Waiting to stop.", tinfo);
-
-            } else {
-
-                MDGUI__playlist_current = MDGUI__playlist_highlighted;
-
-                MDGUI__start_playing ();
-            }
-
-            break;
-
-        default:
-
-            break;
-        }
-    }
-    else if (key[0] == 27 && key[1] == 91 && key[2] == 66) {
-
-        // DOWN ARROW
-
-        switch (selected_component) {
-
-        case MDGUI__NONE:
-
-            if (potential_component == MDGUI__LOGO)
-
-                potential_component = MDGUI__METABOX;
-
-            else if (potential_component == MDGUI__NONE)
-
-                potential_component = MDGUI__FILEBOX;
-
-            // draw_all();
-
-            break;
-
-        case MDGUI__FILEBOX:
-
-
-            break;
-
-        case MDGUI__PLAYLIST:
-            //
-            // if (MDGUI__playlist_highlighted < MDGUI__playlist_first
-            // &&  MDGUI__playlist_highlighted >= 0)
-            //     MDGUI__playlist_first = MDGUI__playlist_highlighted;
-            //
-            // else if (MDGUI__playlist_highlighted > MDGUI__playlist_first + MDGUI__file_box_h - 2) {
-            //
-            //     MDGUI__playlist_highlighted = MDGUI__playlist_first + MDGUI__file_box_h - 3;
-            //     // redraw_playlist_box ();
-            //     break;
-            // }
-            //
-            // if (MDGUI__playlist_highlighted < MDGUI__playlist_size - 1) MDGUI__playlist_highlighted++;
-            // if (MDGUI__playlist_highlighted == MDGUI__playlist_first + MDGUI__file_box_h - 2) MDGUI__playlist_first++;
-            //
-            // // redraw_playlist_box ();
-
-            break;
-
-        default:
-
-            break;
-        }
-
-    }
-    else if (key[0] == 27 && key[1] == 91 && key[2] == 65) {
-
-        // UP ARROW
-
-        switch (selected_component) {
-
-        case MDGUI__NONE:
-
-            if (potential_component == MDGUI__METABOX)
-
-                potential_component = MDGUI__LOGO;
-
-            else if (potential_component == MDGUI__NONE)
-
-                potential_component = MDGUI__FILEBOX;
-
-            // draw_all();
-
-            break;
-
-        case MDGUI__FILEBOX:
-
-
-
-            // redraw_file_box ();
-
-            break;
-
-        case MDGUI__PLAYLIST:
-
-            // if (MDGUI__playlist_highlighted < MDGUI__playlist_first && MDGUI__playlist_highlighted >= 0) MDGUI__playlist_first = MDGUI__playlist_highlighted;
-            // else if (MDGUI__playlist_highlighted > MDGUI__playlist_first + MDGUI__file_box_h - 2) MDGUI__playlist_highlighted = MDGUI__playlist_first + MDGUI__file_box_h - 2;
-            //
-            // if (MDGUI__playlist_highlighted < 0) MDGUI__playlist_highlighted = 0;
-            // if (MDGUI__playlist_highlighted > 0) MDGUI__playlist_highlighted--;
-            // if (MDGUI__playlist_highlighted == MDGUI__playlist_first - 1 && MDGUI__playlist_first != 0) MDGUI__playlist_first--;
-
-            // redraw_playlist_box ();
-
-            break;
-
-        default:
-
-            break;
-        }
-    }
-    else if (key[0] == 27 && key[1] == 91 && key[2] == 67) {
-
-        // RIGHT ARROW
-
-        switch (selected_component) {
-
-        case MDGUI__NONE:
-
-            switch (potential_component) {
-
-            case MDGUI__NONE:
-
-                potential_component = MDGUI__FILEBOX;
-                break;
-
-            case MDGUI__FILEBOX:
-
-                potential_component = MDGUI__METABOX;
-                break;
-
-            case MDGUI__LOGO:
-
-                potential_component = MDGUI__PLAYLIST;
-                break;
-
-            case MDGUI__METABOX:
-
-                potential_component = MDGUI__PLAYLIST;
-                break;
-
-            case MDGUI__PLAYLIST:
-
-                potential_component = MDGUI__PLAYLIST;
-                break;
-
-            default:
-
-                break;
-            }
-
-            // draw_all ();
-            break;
-
-        default:
-
-            break;
-        }
-    } else if (key[0] == 27 && key[1] == 91 && key[2] == 68) {
-
-        // LEFT ARROW
-
-        switch (selected_component) {
-
-        case MDGUI__NONE:
-
-            switch (potential_component) {
-
-            case MDGUI__NONE:
-
-                potential_component = MDGUI__FILEBOX;
-                break;
-
-            case MDGUI__LOGO:
-
-                potential_component = MDGUI__FILEBOX;
-                break;
-
-            case MDGUI__METABOX:
-
-                potential_component = MDGUI__FILEBOX;
-                break;
-
-            case MDGUI__PLAYLIST:
-
-                potential_component = MDGUI__METABOX;
-                break;
-
-            default:
-
-                break;
-            }
-
-            // draw_all ();
-            break;
-
-        default:
-
-            break;
-        }
-    }
-    else if ((key[0] == 'p' || key[0] == 'P') && key[1] == 0 && key[2] == 0) {
-        // PAUSE
-
-        if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
-
-            MD__toggle_pause (curr_playing);
-            current_play_state = MD__is_paused (curr_playing) ? MDGUI__PAUSE : MDGUI__PLAYING;
-
-            MDGUI__log (current_play_state == MDGUI__PAUSE ? "Playing paused." : "Playing resumed.", tinfo);
-        }
-    }
-    else if ((key[0] == 's' || key[0] == 'S') && key[1] == 0 && key[2] == 0) {
-        // STOP
-
-        if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
-
-            current_play_state = MDGUI__WAITING_TO_STOP;
-
-            MDGUI__stop_all_signal = true;
-
-            MD__stop (curr_playing);
-
-            MDGUI__log ("Waiting to stop.", tinfo);
-        }
-    }
-    return true;
-}
-
-void mdgui_completion () {
-
-    pthread_mutex_lock (&MDGUI__mutex);
-
-    if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
-
-        current_play_state = MDGUI__PROGRAM_EXIT;
-
-        pthread_mutex_unlock (&MDGUI__mutex);
-
-        MD__stop (curr_playing);
-
-        for (;;) {
-            pthread_mutex_lock (&MDGUI__mutex);
-            if (current_play_state == MDGUI__READY_TO_EXIT) {
-
-                pthread_mutex_unlock (&MDGUI__mutex);
-                break;
-            }
-            pthread_mutex_unlock (&MDGUI__mutex);
-        }
-    }
-    else {
-
-        current_play_state = MDGUI__PROGRAM_EXIT;
-        pthread_mutex_unlock (&MDGUI__mutex);
-    }
-
-    MD__cleanup ();
-
-    MDAL__close();
-}
 
 int main (int argc, char *argv[]) {
 
     return 0;
 
-    #ifdef MDGUI_DEBUG
-        MDLOG__setup (MDLOG__handle);
-    #endif
-
-    MDAL__initialize (4096, 4, 4);
-
-    pthread_mutex_init (&MDGUI__mutex, NULL);
-
-    initscr();
-
-    tinfo = MDGUI__get_terminal_information ();
-
-    // layout ();
-
-    // MDGUIFB__get_current_dir (&start_dir);
-
-    clear();
-
-    curs_set (0);
-
-    // MDGUIFB__get_dir_contents (&ccont, &cnum, start_dir);
-
-    // draw_all ();
-
-    MDGUI__log ("Use arrow keys to move, ENTER to select and ESC to deselect/exit.", tinfo);
-
-    if (pthread_create(&terminal_thread, NULL, terminal_change, NULL)) {
-        return 0;
-    }
-
-    MDGUI__wait_for_keypress(key_pressed, mdgui_completion);
-
-    pthread_join (terminal_thread, NULL);
+    
 
     return 0;
 }
