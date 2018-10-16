@@ -196,11 +196,38 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         default:
 
+            switch (mdgui->selected_component) {
+
+            case MDGUI__FILEBOX:
+
+                MDGUI__deselect_box (&mdgui->filebox.listbox.box);
+                break;
+
+            case MDGUI__PLAYLIST:
+
+                MDGUI__deselect_box (&mdgui->playlistbox.box);
+                break;
+
+            case MDGUI__METABOX:
+
+                MDGUI__deselect_box (&mdgui->metabox.box);
+                break;
+
+            case MDGUI__LOGO:
+
+                mdgui->selected_component = MDGUI__NONE;
+                mdgui->potential_component = MDGUI__LOGO;
+
+                MDGUI__draw_logo (mdgui);
+                return true;
+
+            default:
+                break;
+            }
+
             mdgui->selected_component = MDGUI__NONE;
 
             mdgui->potential_component = mdgui->previous_potential_component;
-
-            // draw_all ();
         }
 
     }
@@ -218,7 +245,31 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             mdgui->potential_component = MDGUI__NONE;
 
-            // draw_all();
+            switch (mdgui->selected_component) {
+
+            case MDGUI__FILEBOX:
+
+                MDGUI__select_box (&mdgui->filebox.listbox.box);
+                break;
+
+            case MDGUI__PLAYLIST:
+
+                MDGUI__select_box (&mdgui->playlistbox.box);
+                break;
+
+            case MDGUI__METABOX:
+
+                MDGUI__select_box (&mdgui->metabox.box);
+                break;
+
+            case MDGUI__LOGO:
+
+                MDGUI__draw_logo (mdgui);
+                break;
+
+            default:
+                break;
+            }
 
             break;
 
@@ -257,20 +308,21 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
     else if (key[0] == 27 && key[1] == 91 && key[2] == 66) {
 
         // DOWN ARROW
-
         switch (mdgui->selected_component) {
 
         case MDGUI__NONE:
 
-            if (mdgui->potential_component == MDGUI__LOGO)
+            if (mdgui->potential_component == MDGUI__LOGO) {
 
                 mdgui->potential_component = MDGUI__METABOX;
+                MDGUI__draw_logo (mdgui);
+                MDGUI__highlight_box (&mdgui->metabox.box);
+            }
+            else if (mdgui->potential_component == MDGUI__NONE) {
 
-            else if (mdgui->potential_component == MDGUI__NONE)
-
-                mdgui->potential_component = MDGUI__FILEBOX;
-
-            // draw_all();
+                mdgui->potential_component = MDGUI__METABOX;
+                MDGUI__highlight_box (&mdgui->metabox.box);
+            }
 
             break;
 
@@ -296,36 +348,26 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         case MDGUI__NONE:
 
-            if (mdgui->potential_component == MDGUI__METABOX)
+            if (mdgui->potential_component == MDGUI__METABOX) {
 
                 mdgui->potential_component = MDGUI__LOGO;
+                MDGUI__draw_logo (mdgui);
+                MDGUI__unhighlight_box (&mdgui->metabox.box);
+            }
 
-            else if (mdgui->potential_component == MDGUI__NONE)
+            else if (mdgui->potential_component == MDGUI__NONE) {
 
-                mdgui->potential_component = MDGUI__FILEBOX;
-
-            // draw_all();
+                mdgui->potential_component = MDGUI__LOGO;
+                MDGUI__draw_logo (mdgui);
+            }
 
             break;
 
         case MDGUI__FILEBOX:
 
-
-
-            // redraw_file_box ();
-
             break;
 
         case MDGUI__PLAYLIST:
-
-            // if (MDGUI__playlist_highlighted < MDGUI__playlist_first && MDGUI__playlist_highlighted >= 0) MDGUI__playlist_first = MDGUI__playlist_highlighted;
-            // else if (MDGUI__playlist_highlighted > MDGUI__playlist_first + MDGUI__file_box_h - 2) MDGUI__playlist_highlighted = MDGUI__playlist_first + MDGUI__file_box_h - 2;
-            //
-            // if (MDGUI__playlist_highlighted < 0) MDGUI__playlist_highlighted = 0;
-            // if (MDGUI__playlist_highlighted > 0) MDGUI__playlist_highlighted--;
-            // if (MDGUI__playlist_highlighted == MDGUI__playlist_first - 1 && MDGUI__playlist_first != 0) MDGUI__playlist_first--;
-
-            // redraw_playlist_box ();
 
             break;
 
@@ -346,27 +388,33 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             case MDGUI__NONE:
 
-                mdgui->potential_component = MDGUI__FILEBOX;
+                mdgui->potential_component = MDGUI__PLAYLIST;
+                MDGUI__highlight_box (&mdgui->playlistbox.box);
                 break;
 
             case MDGUI__FILEBOX:
 
                 mdgui->potential_component = MDGUI__METABOX;
+
+                MDGUI__unhighlight_box (&mdgui->filebox.listbox.box);
+                MDGUI__highlight_box (&mdgui->metabox.box);
+
                 break;
 
             case MDGUI__LOGO:
 
                 mdgui->potential_component = MDGUI__PLAYLIST;
+                MDGUI__draw_logo (mdgui);
+                MDGUI__highlight_box (&mdgui->playlistbox.box);
+
                 break;
 
             case MDGUI__METABOX:
 
                 mdgui->potential_component = MDGUI__PLAYLIST;
-                break;
+                MDGUI__unhighlight_box (&mdgui->metabox.box);
+                MDGUI__highlight_box (&mdgui->playlistbox.box);
 
-            case MDGUI__PLAYLIST:
-
-                mdgui->potential_component = MDGUI__PLAYLIST;
                 break;
 
             default:
@@ -374,7 +422,6 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
                 break;
             }
 
-            // draw_all ();
             break;
 
         default:
@@ -394,21 +441,31 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
             case MDGUI__NONE:
 
                 mdgui->potential_component = MDGUI__FILEBOX;
+                MDGUI__highlight_box (&mdgui->filebox.listbox.box);
                 break;
 
             case MDGUI__LOGO:
 
                 mdgui->potential_component = MDGUI__FILEBOX;
+                MDGUI__draw_logo (mdgui);
+                MDGUI__highlight_box (&mdgui->filebox.listbox.box);
                 break;
 
             case MDGUI__METABOX:
 
                 mdgui->potential_component = MDGUI__FILEBOX;
+
+                MDGUI__unhighlight_box (&mdgui->metabox.box);
+                MDGUI__highlight_box (&mdgui->filebox.listbox.box);
+
                 break;
 
             case MDGUI__PLAYLIST:
 
                 mdgui->potential_component = MDGUI__METABOX;
+
+                MDGUI__unhighlight_box (&mdgui->playlistbox.box);
+                MDGUI__highlight_box (&mdgui->metabox.box);
                 break;
 
             default:
@@ -424,6 +481,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
         }
     }
     else if ((key[0] == 'p' || key[0] == 'P') && key[1] == 0 && key[2] == 0) {
+
         // PAUSE
 
         if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
@@ -435,6 +493,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
         }
     }
     else if ((key[0] == 's' || key[0] == 'S') && key[1] == 0 && key[2] == 0) {
+
         // STOP
 
         if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {

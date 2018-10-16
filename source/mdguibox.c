@@ -23,11 +23,6 @@ MDGUI__box_t MDGUI__box_create (char *name, int x, int y, int height, int width)
     return new_box;
 }
 
-void MDGUI__box_deinit (MDGUI__box_t *box) {
-
-    if (box->name) free (box->name);
-}
-
 void MDGUI__draw_box (MDGUI__box_t *box) {
 
     bool box_highlighted = box->highlighted;
@@ -69,4 +64,37 @@ void MDGUI__draw_box (MDGUI__box_t *box) {
     if (box->selected) attroff (A_REVERSE);
 
     refresh();
+}
+
+void MDGUI__highlight_box (MDGUI__box_t *box) {
+
+    box->selected = false;
+    box->highlighted = true;
+    MDGUI__draw_box (box);
+}
+
+void MDGUI__unhighlight_box (MDGUI__box_t *box) {
+
+    box->selected = false;
+    box->highlighted = false;
+    MDGUI__draw_box (box);
+}
+
+void MDGUI__select_box (MDGUI__box_t *box) {
+
+    box->selected = true;
+    box->highlighted = false;
+    MDGUI__draw_box (box);
+}
+
+void MDGUI__deselect_box (MDGUI__box_t *box) {
+
+    box->selected = false;
+    box->highlighted = true;
+    MDGUI__draw_box (box);
+}
+
+void MDGUI__box_deinit (MDGUI__box_t *box) {
+
+    if (box->name) free (box->name);
 }

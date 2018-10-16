@@ -23,6 +23,11 @@ MDGUI__box_t    MDGUI__box_create       (char *name, int x, int y, int height, i
 
 void            MDGUI__draw_box         (MDGUI__box_t *box);
 
+void            MDGUI__unhighlight_box  (MDGUI__box_t *box);
+void            MDGUI__highlight_box    (MDGUI__box_t *box);
+void            MDGUI__select_box       (MDGUI__box_t *box);
+void            MDGUI__deselect_box     (MDGUI__box_t *box);
+
 void            MDGUI__box_deinit       ();
 
 #endif
