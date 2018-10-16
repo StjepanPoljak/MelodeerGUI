@@ -1,11 +1,22 @@
-#ifndef MDGUIFB
+#ifndef MDGUIFB_H
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <dirent.h>
 #include <limits.h>
+#include <unistd.h>
 
-#include "mdgui.h"
+#include "mdguilistbox.h"
+
+struct MDGUI__file_box {
+
+    MDGUI__listbox_t listbox;
+
+    char *curr_dir;
+};
+
+typedef struct MDGUI__file_box MDGUI__file_box_t;
+
+MDGUI__file_box_t   MDGUIFB__create      (char *name, int x, int y,
+                                         int height, int width);
 
 void    MDGUIFB__append_to_dirname      (char **new, char *string, char *append);
 
@@ -13,20 +24,12 @@ void    MDGUIFB__get_parent_dir         (char **new, char *curr);
 
 void    MDGUIFB__get_current_dir        (char **currdir);
 
-bool    MDGUIFB__get_dir_contents       (char **carray[], int *cnum, char *curr_dir);
+bool    MDGUIFB__get_dir_contents       (MDGUI__file_box_t *filebox);
 
-void    MDGUIFB__print_string_array     (char *carray[], int cnum, bool dirflag,
-                                         int num_first, int num_lines,
-                                         int num_highlighted, int num_selected,
-                                         int term_pos_x, int term_pos_y, int width);
+void    MDGUIFB__draw_file_box           (MDGUI__file_box_t *filebox);
 
-void    MDGUIFB__draw_file_box          (char *carray[], int cnum,
-                                         bool box_selected, bool dirflag,
-                                         int num_first, int num_highlighted, int num_selected,
-                                         int term_pos_x, int term_pos_y,
-                                         int width, int height);
+void    MDGUIFB__deinit                 (MDGUI__file_box_t *filebox);
 
-bool MDGUIFB__compare (char *string1, char *string2);
 #endif
 
-#define MDGUIFB
+#define MDGUIFB_H

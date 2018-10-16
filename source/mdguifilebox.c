@@ -1,28 +1,18 @@
 #include "mdguifilebox.h"
 
-char MDGUIFB__small_cap (char c) {
+void MDGUIFB__get_current_dir (char **currdir);
 
-    return (c >= 65 && c <= 90) ? c + 32 : c;
-}
+MDGUI__file_box_t MDGUIFB__create (char *name, int x, int y, int height, int width) {
 
-bool MDGUIFB__compare (char *string1, char *string2) {
+    MDGUI__file_box_t new_fb;
 
-    int string1_size = MDGUI__get_string_size (string1);
-    int string2_size = MDGUI__get_string_size (string2);
+    new_fb.listbox = MDGUILB__create (name, x, y, height, width, true);
 
-    int min_size = string1_size > string2_size ? string2_size : string1_size;
+    new_fb.curr_dir = NULL;
 
-    for (int i = 0; i < min_size; i++) {
+    MDGUIFB__get_current_dir (&new_fb.curr_dir);
 
-        char curr1 = MDGUIFB__small_cap(string1[i]);
-        char curr2 = MDGUIFB__small_cap(string2[i]);
-
-        if (curr1 == curr2) continue;
-
-        return (curr1 > curr2);
-    }
-
-    return string1_size > string2_size;
+    return new_fb;
 }
 
 void MDGUIFB__get_current_dir (char **currdir) {
@@ -132,80 +122,38 @@ void MDGUIFB__get_parent_dir (char **new, char *curr) {
 
 }
 
-bool MDGUIFB__get_dir_contents (char **carray[], int *cnum, char *curr_dir) {
+bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 
     DIR *d;
     struct dirent *dir;
 
-    char **result = NULL;
     int last = 0;
 
-    d = opendir (curr_dir);
+    d = opendir (filebox->curr_dir);
 
     if (d) {
 
+        MDGUI__str_array_empty (&filebox->listbox.str_array);
+
         while ((dir = readdir(d)) != NULL) {
 
-            if (result == NULL) result = malloc(sizeof(*result));
-            else {
-
-                char **old = malloc (sizeof (*old) * (last + 1));
-
-                for (int j=0; j<last; j++) {
-
-                    int old_j_string_size = MDGUI__get_string_size (result[j]);
-                    old[j] = malloc (sizeof (**old) * old_j_string_size + 1);
-
-                    for (int i=0; i <= old_j_string_size; i++) old[j][i] = result[j][i];
-
-                    char *oldres = result[j];
-                    free (oldres);
-                }
-
-                result = realloc (result, sizeof (*result) * (last + 2));
-
-                for (int j=0; j<last; j++) {
-
-                    int result_j_string_size = MDGUI__get_string_size (old[j]);
-                    result[j] = malloc (sizeof(**result) * result_j_string_size + 1);
-
-                    for (int i=0; i <= result_j_string_size; i++) result[j][i] = old[j][i];
-
-                    char *oldold = old[j];
-                    free (oldold);
-                }
-
-                free (old);
-            }
-            int dir_name_size = MDGUI__get_string_size (dir->d_name) + 1;
+            int dir_name_size = MDGUI__get_string_size (dir->d_name) + 2;
 
             // NOTE: first byte reserved for file info, 'f' if file, 'd' if dir
 
-            result[last] = malloc (sizeof (**result) * dir_name_size + 1);
+            char *tempdir = malloc (sizeof (*tempdir) * dir_name_size + 1);
 
-            if (dir->d_type == DT_DIR) result[last][0] = 'd';
-            else result[last][0] = 'f';
+            if (dir->d_type == DT_DIR) tempdir[0] = 'd';
+            else tempdir[0] = 'f';
 
-            for (int i=0; i < dir_name_size; i++) result[last][i+1] = dir->d_name[i];
+            for (int i=0; i < dir_name_size; i++) tempdir[i+1] = dir->d_name[i];
 
-            last++;
+            MDGUI__str_array_append (&filebox->listbox.str_array, tempdir);
+
+            free (tempdir);
         }
 
         closedir (d);
-
-        char **old = *carray;
-        *carray = result;
-
-        if (old != NULL) {
-
-            for(int i=0; i < *cnum; i++) free (old[i]);
-
-            free (old);
-        }
-
-        *cnum = last;
-
-        MDGUI__sort (*carray, *cnum, MDGUIFB__compare);
 
         return true;
     }
@@ -213,64 +161,14 @@ bool MDGUIFB__get_dir_contents (char **carray[], int *cnum, char *curr_dir) {
     return false;
 }
 
-void MDGUIFB__print_string_array (char *carray[], int cnum, bool dirflag,
-                             int num_first, int num_lines,
-                             int num_highlighted, int num_selected,
-                             int term_pos_x, int term_pos_y, int width) {
+void MDGUIFB__draw_file_box (MDGUI__file_box_t *filebox) {
 
-    int line = 0;
-
-    int start = num_first + num_lines >= cnum && cnum - num_lines >= 0
-              ? cnum - num_lines
-              : num_first;
-
-    int end = (start + num_lines >= cnum) ? cnum : start + num_lines;
-
-    for (int i = start, j = 0; i < end; i++, j++) {
-
-        if (i == num_highlighted) attron (A_REVERSE);
-
-        int str_size = MDGUI__get_string_size (carray[i]);
-
-        int get_last_slash = 0;
-
-        if (!dirflag) for (int k = str_size - 1; k >= 0; k--) if (carray[i][k] == '/') {
-
-            get_last_slash = k + 1;
-            str_size -= get_last_slash;
-
-            break;
-        }
-
-        int chars_to_print = str_size >= width ? (dirflag ? width : width - 1) : str_size;
-
-        if (carray[i][0] == 'd' && dirflag) attron (A_BOLD);
-
-        if (!dirflag && i == num_selected) attron (A_BOLD);
-
-        int maxprint = dirflag ? chars_to_print - 1 : chars_to_print;
-
-        for (int k = 0; k < maxprint; k++)
-
-            mvprintw (term_pos_y + j, term_pos_x + k, "%c",
-                      carray[i][get_last_slash + (dirflag ? k+1 : k)]);
-
-        if (i == num_highlighted) attroff (A_REVERSE);
-
-        if (carray[i][0] == 'd' && dirflag) attroff (A_BOLD);
-
-        if (!dirflag && i == num_selected) attroff (A_BOLD);
-    }
-
-    refresh();
+    MDGUILB__draw (&filebox->listbox, -1);
 }
 
-void MDGUIFB__draw_file_box (char *carray[], int cnum, bool box_selected, bool dirflag,
-                             int num_first, int num_highlighted, int num_selected,
-                             int term_pos_x, int term_pos_y, int width, int height) {
+void MDGUIFB__deinit (MDGUI__file_box_t *filebox) {
 
-    MDGUI__draw_box (box_selected, term_pos_x, term_pos_y, width, height);
-    MDGUIFB__print_string_array (carray, cnum, dirflag,
-                                 num_first, height - 4, num_highlighted, num_selected,
-                                 term_pos_x + 2, term_pos_y + 2, width - 4);
+    MDGUILB__deinit (&filebox->listbox);
+
+    if (filebox->curr_dir) free (filebox->curr_dir);
 }

@@ -1,0 +1,30 @@
+#ifndef MDGUIBOX_H
+
+#include <stdlib.h>
+#include <stdbool.h>
+#include <ncurses.h>
+
+struct MDGUI__box {
+
+    char *name;
+
+    int x;
+    int y;
+    int height;
+    int width;
+
+    bool selected;
+    bool highlighted;
+};
+
+typedef struct MDGUI__box MDGUI__box_t;
+
+MDGUI__box_t    MDGUI__box_create       (char *name, int x, int y, int height, int width);
+
+void            MDGUI__draw_box         (MDGUI__box_t *box);
+
+void            MDGUI__box_deinit       ();
+
+#endif
+
+#define MDGUIBOX_H

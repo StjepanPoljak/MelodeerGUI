@@ -1,13 +1,24 @@
-#ifndef MDGUIMD
+#ifndef MDGUIMB_H
 
-#include "mdgui.h"
+#include "mdguibox.h"
+#include <melodeer/mdcore.h>
 
-void    MDGUIMD__draw_meta_box          (unsigned int total_samples,
-                                         unsigned int sample_rate,
-                                         unsigned int channels,
-                                         unsigned int bps,
-                                         bool box_selected,
-                                         int term_pos_x, int term_pos_y,
-                                         int width, int height);
+struct MDGUI__meta_box {
+
+    MDGUI__box_t box;
+
+    bool metadata_present;
+    MD__metadata_t metadata;
+};
+
+typedef struct MDGUI__meta_box MDGUI__meta_box_t;
+
+MDGUI__meta_box_t   MDGUIMB__create     (char *name, int x, int y, int width, int height);
+
+void    MDGUIMB__draw_meta_box          (MDGUI__meta_box_t *metabox);
+
+void    MDGUIMB__deinit                 ();
 
 #endif
+
+#define MDGUIMB_H

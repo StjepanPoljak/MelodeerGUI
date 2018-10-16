@@ -1,14 +1,31 @@
 #include "mdguimeta.h"
 
-void MDGUIMD__draw_meta_box (unsigned int total_samples,
-                             unsigned int sample_rate,
-                             unsigned int channels,
-                             unsigned int bps,
-                             bool box_selected,
-                             int term_pos_x, int term_pos_y,
-                             int width, int height) {
+#include "mdguistrarr.h"
 
-    MDGUI__draw_box (box_selected, term_pos_x, term_pos_y, width, height);
+MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int width, int height) {
+
+    MDGUI__meta_box_t new_box;
+
+    new_box.metadata_present = false;
+
+    new_box.box = MDGUI__box_create (name, x, y, width, height);
+
+    return new_box;
+}
+
+
+void MDGUIMD__draw_meta_box (MDGUI__meta_box_t *metabox) {
+
+    MDGUI__draw_box (&metabox->box);
+
+    unsigned int total_samples  = metabox->metadata.total_samples;
+    unsigned int channels = metabox->metadata.channels;
+    unsigned int bps = metabox->metadata.bps;
+    unsigned int sample_rate = metabox->metadata.sample_rate;
+
+    int term_pos_x = metabox->box.x;
+    int term_pos_y = metabox->box.y;
+    int width = metabox->box.width;
 
     unsigned int total_seconds  = total_samples / sample_rate;
     unsigned int hours          = total_seconds / 3600;
@@ -32,7 +49,7 @@ void MDGUIMD__draw_meta_box (unsigned int total_samples,
     snprintf (data_size_string, data_size_string_size, "%.2f %s", data_test ? mb : kb, data_test ? "Mb" : "Kb");
 
     mvprintw (term_pos_y + 1, term_pos_x + (width - (sample_rate_string_size - 1)) / 2, "%s", sample_rate_string);
-    
+
     mvprintw (term_pos_y + 3, term_pos_x + (width - channels_string_size + 1) / 2, "%s", channels_string);
 
     move (term_pos_y + 5, term_pos_x + 1);
