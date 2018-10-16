@@ -15,6 +15,8 @@ void MDGUI__str_array_init (MDGUI__str_array_t *str_array) {
     str_array->carray = NULL;
     str_array->cnum = 0;
     str_array->csize = 0;
+
+    return;
 }
 
 void MDGUI__str_array_append (MDGUI__str_array_t *str_array, char *string) {
@@ -67,6 +69,8 @@ void MDGUI__str_array_append (MDGUI__str_array_t *str_array, char *string) {
 
         free (temp);
     }
+
+    return;
 }
 
 char MDGUI__small_cap (char c) {
@@ -99,10 +103,10 @@ int MDGUI__partition (MDGUI__str_array_t *str_array, bool(*compare_f)(char *, ch
     char *pivot = str_array->carray[hi];
     int i = lo - 1;
 
-    for(int j = lo; j <= hi - 1; j++)
-    {
-        if (!compare_f(str_array->carray[j], pivot))
-        {
+    for(int j = lo; j <= hi - 1; j++) {
+
+        if (!compare_f(str_array->carray[j], pivot)) {
+
             i++;
 
             char *temp = str_array->carray[i];
@@ -128,11 +132,15 @@ void MDGUI__sort_step (MDGUI__str_array_t *str_array, bool(*compare_f)(char *, c
         MDGUI__sort_step (str_array, compare_f, lo, p - 1);
         MDGUI__sort_step (str_array, compare_f, p + 1, hi);
     }
+
+    return;
 }
 
 void MDGUI__sort (MDGUI__str_array_t *str_array, bool(*compare_f)(char *, char*)) {
 
     MDGUI__sort_step (str_array, compare_f, 0, str_array->cnum - 1);
+
+    return;
 }
 
 void MDGUI__str_array_empty (MDGUI__str_array_t *str_array) {
@@ -145,6 +153,61 @@ void MDGUI__str_array_empty (MDGUI__str_array_t *str_array) {
     }
 
     str_array->cnum = 0;
+
+    return;
+}
+
+
+bool MDGUI__str_array_is_empty (MDGUI__str_array_t *str_array) {
+
+    return str_array->cnum <= 0;
+}
+
+void MDGUI__str_array_copy (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest, int from_i, int to_i) {
+
+    if (MDGUI__str_array_is_empty (str_array_dest)) return;
+
+    if (from_i < 0 || to_i >= str_array_source->cnum) return;
+
+    int size = to_i - from_i + 1;
+
+    if (size <= 0) return;
+
+    if (!MDGUI__str_array_is_empty (str_array_dest)) MDGUI__str_array_empty (str_array_dest);
+
+    if (str_array_dest->csize < size) {
+
+        int allocsize = sizeof(*str_array_dest->carray) * size;
+
+        if (str_array_dest->carray) str_array_dest->carray = realloc (str_array_dest->carray, allocsize);
+
+        else str_array_dest->carray = malloc (allocsize);
+    }
+
+    for (int i=0; i<size; i++) {
+
+        int string_size = MDGUI__get_string_size (str_array_source->carray[i+from_i]) + 1;
+
+        str_array_dest->carray[i] = malloc (sizeof(*str_array_dest->carray) * string_size);
+
+        for (int j=0; j<size; j++) str_array_dest->carray[i][j] = str_array_source->carray[i+from_i][j];
+    }
+
+    return;
+}
+
+void MDGUI__str_array_copy_all_from (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest, int from_i) {
+
+    MDGUI__str_array_copy (str_array_source, str_array_dest, from_i, str_array_dest->cnum - 1);
+
+    return;
+}
+
+void MDGUI__str_array_copy_all (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest) {
+
+    MDGUI__str_array_copy_all_from (str_array_source, str_array_dest, 0);
+
+    return;
 }
 
 void MDGUI__str_array_deinit (MDGUI__str_array_t *str_array) {
@@ -155,4 +218,6 @@ void MDGUI__str_array_deinit (MDGUI__str_array_t *str_array) {
 
         free (str_array->carray);
     }
+
+    return;
 }
