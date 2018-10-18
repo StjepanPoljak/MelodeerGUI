@@ -1,5 +1,5 @@
 proj = melodeergui
-objects = main.o mdgui.o mdguifilebox.o mdguimeta.o mdguilistbox.o mdguistrarr.o mdguibox.o
+objects = main.o mdgui.o mdguifilebox.o mdguimeta.o mdguilistbox.o mdguistrarr.o mdguibox.o mdguiplaylist.o
 libs = melodeer pthread ncurses
 
 srcdir = source

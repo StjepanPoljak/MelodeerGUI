@@ -33,6 +33,11 @@ void        MDGUI__str_array_copy           (MDGUI__str_array_t *str_array_sourc
                                              MDGUI__str_array_t *str_array_dest,
                                              int from_i, int to_i, int ignore);
 
+void        MDGUI__str_array_copy_raw        (MDGUI__str_array_t *str_array_source,
+                                             MDGUI__str_array_t *str_array_dest,
+                                             int from_i, int to_i, void *data,
+                                             void (*transform)(void *data, char *src, char **dest));
+
 void        MDGUI__str_array_copy_all       (MDGUI__str_array_t *str_array_source,
                                              MDGUI__str_array_t *str_array_dest,
                                              int ignore);

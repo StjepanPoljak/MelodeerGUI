@@ -2,47 +2,6 @@
 
 void MDGUIFB__get_current_dir (MDGUI__file_box_t *filebox);
 
-bool MDGUIFB__return (MDGUI__file_box_t *filebox) {
-
-    if (filebox->listbox.num_selected < 0 || filebox->listbox.num_selected >= filebox->listbox.str_array.cnum) return false;
-
-    char *selected = filebox->listbox.str_array.carray[filebox->listbox.num_selected];
-
-    switch (selected[0]) {
-
-    case 'f':
-
-        //MDGUIFB__append_to_dirname (filebox, &(filebox->listbox.str_array.carray[filebox->listbox.num_selected][1]), filename);
-
-        return true;
-
-    case 'd':
-
-        switch (MDGUI__get_string_size (&(selected[1]))) {
-
-        case 0:
-            return false;
-
-        case 1:
-            if (selected[2] == '.') return false;
-            break;
-        case 2:
-            if (selected[2] == '.' && selected[3] == '.') return false;
-            break;
-
-        default:
-            MDGUIFB__append_to_dirname (filebox, &(selected[1]), &filebox->curr_dir);
-            break;
-        }
-
-        MDGUIFB__get_dir_contents (filebox);
-
-        MDGUIFB__redraw (filebox);
-    }
-
-    return false;
-}
-
 MDGUI__file_box_t MDGUIFB__create (char *name, int x, int y, int height, int width) {
 
     MDGUI__file_box_t new_fb;
@@ -56,6 +15,47 @@ MDGUI__file_box_t MDGUIFB__create (char *name, int x, int y, int height, int wid
     MDGUIFB__get_dir_contents (&new_fb);
 
     return new_fb;
+}
+
+bool MDGUIFB__return (MDGUI__file_box_t *filebox) {
+
+    if (filebox->listbox.num_selected < 0 || filebox->listbox.num_selected >= filebox->listbox.str_array.cnum) return false;
+
+    char *selected = filebox->listbox.str_array.carray[filebox->listbox.num_selected];
+
+    switch (selected[0]) {
+
+    case 'f':
+
+        return true;
+
+    case 'd':
+
+        ;
+
+        int selected_size = MDGUI__get_string_size (&(selected[1]));
+
+        if ((selected_size == 1 && selected[2] == '.') || selected_size == 0) return false;
+
+        else if (selected_size == 2 && selected[2] == '.' && selected[3] == '.') {
+
+            MDGUIFB__get_parent_dir (filebox);
+
+        }
+        else {
+
+            MDGUIFB__append_to_dirname (filebox, &(selected[1]), &filebox->curr_dir);
+
+        }
+
+        MDGUIFB__get_dir_contents (filebox);
+
+        MDGUIFB__redraw (filebox);
+
+        break;
+    }
+
+    return false;
 }
 
 void MDGUIFB__get_current_dir (MDGUI__file_box_t *filebox) {

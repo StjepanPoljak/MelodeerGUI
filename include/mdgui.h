@@ -14,7 +14,7 @@
 #include "mdguistrarr.h"
 #include "mdguifilebox.h"
 #include "mdguimeta.h"
-#include "mdguilistbox.h"
+#include "mdguiplaylist.h"
 
 struct MDGUI__terminal {
 
@@ -65,10 +65,9 @@ struct MDGUI__manager {
     pthread_mutex_t mutex;
 
     MDGUI__file_box_t filebox;
-    MDGUI__listbox_t playlistbox;
+    MDGUI__playlist_box_t playlistbox;
     MDGUI__meta_box_t metabox;
 
-    int curr_in_playlist;
     char *playlist_dir;
 
     MDGUI__play_state volatile current_play_state;

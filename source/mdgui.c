@@ -96,9 +96,6 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
 
     mdgui->tinfo = MDGUI__get_terminal_information ();
 
-    // mdgui->curr_playing = NULL;
-    mdgui->curr_in_playlist = -1;
-
     mdgui->selected_component = MDGUI__NONE;
     mdgui->potential_component = MDGUI__NONE;
     mdgui->previous_potential_component = MDGUI__NONE;
@@ -112,7 +109,7 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
 
     mdgui->metabox = MDGUIMB__create ("metadata", MDGUI__get_box_x (mdgui, 1), mdgui->top + mdgui->meta_top, box_height - mdgui->meta_bottom - mdgui->meta_top, box_width);
 
-    mdgui->playlistbox = MDGUILB__create ("playlist", MDGUI__get_box_x (mdgui, 2), mdgui->top, box_height, box_width, false);
+    mdgui->playlistbox = MDGUIPB__create ("playlist", MDGUI__get_box_x (mdgui, 2), mdgui->top, box_height, box_width);
 
     MDGUI__play_state volatile current_play_state = MDGUI__NOT_PLAYING;
 
@@ -187,6 +184,20 @@ MDGUI__terminal MDGUI__get_terminal_information () {
     return tinfo;
 }
 
+struct MDGUI__prepend_info {
+
+    char *curr_dir;
+    int curr_dir_str_size;
+};
+
+void MDGUI__str_transform_prepend_dir (void *data, char *src, char **dest) {
+
+    struct MDGUI__prepend_info *dir_info = ((struct MDGUI__prepend_info *)data);
+
+    *dest = malloc (sizeof (**dest) * dir_info->curr_dir_str_size);
+
+}
+
 void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI__manager_t *mdgui, char [3]), void (on_completion)(MDGUI__manager_t *mdgui)) {
 
     struct termios orig_term_attr;
@@ -236,7 +247,7 @@ void MDGUI__draw (MDGUI__manager_t *mdgui) {
 
     MDGUI__draw_logo (mdgui);
     MDGUIFB__draw (&mdgui->filebox);
-    MDGUILB__draw (&mdgui->playlistbox, mdgui->curr_in_playlist);
+    MDGUIPB__draw (&mdgui->playlistbox);
     MDGUIMB__draw (&mdgui->metabox);
 }
 
@@ -314,7 +325,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             case MDGUI__PLAYLIST:
 
-                MDGUI__deselect_box (&mdgui->playlistbox.box);
+                MDGUI__deselect_box (&mdgui->playlistbox.listbox.box);
                 break;
 
             case MDGUI__METABOX:
@@ -363,7 +374,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             case MDGUI__PLAYLIST:
 
-                MDGUI__select_box (&mdgui->playlistbox.box);
+                MDGUI__select_box (&mdgui->playlistbox.listbox.box);
                 break;
 
             case MDGUI__METABOX:
@@ -388,11 +399,11 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             if (MDGUIFB__return (&mdgui->filebox)) {
 
-                MDGUI__str_array_copy_all_from (&mdgui->filebox.listbox.str_array,
-                                                &mdgui->playlistbox.str_array,
-                                                mdgui->filebox.listbox.num_selected, 1);
+                // MDGUI__str_array_copy_all_from (&mdgui->filebox.listbox.str_array,
+                //                                 &mdgui->playlistbox.str_array,
+                //                                 mdgui->filebox.listbox.num_selected, 1);
 
-                MDGUILB__redraw (&mdgui->playlistbox, -1);
+                MDGUIPB__redraw (&mdgui->playlistbox);
             }
 
             break;
@@ -453,8 +464,8 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         case MDGUI__PLAYLIST:
 
-            MDGUILB__down_arrow (&mdgui->playlistbox);
-            MDGUILB__redraw (&mdgui->playlistbox, mdgui->curr_in_playlist);
+            MDGUILB__down_arrow (&mdgui->playlistbox.listbox);
+            MDGUIPB__redraw (&mdgui->playlistbox);
             
             break;
 
@@ -496,8 +507,8 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         case MDGUI__PLAYLIST:
 
-            MDGUILB__up_arrow (&mdgui->playlistbox);
-            MDGUILB__redraw (&mdgui->playlistbox, mdgui->curr_in_playlist);
+            MDGUILB__up_arrow (&mdgui->playlistbox.listbox);
+            MDGUIPB__redraw (&mdgui->playlistbox);
 
             break;
 
@@ -519,7 +530,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
             case MDGUI__NONE:
 
                 mdgui->potential_component = MDGUI__PLAYLIST;
-                MDGUI__highlight_box (&mdgui->playlistbox.box);
+                MDGUI__highlight_box (&mdgui->playlistbox.listbox.box);
                 break;
 
             case MDGUI__FILEBOX:
@@ -535,7 +546,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 mdgui->potential_component = MDGUI__PLAYLIST;
                 MDGUI__draw_logo (mdgui);
-                MDGUI__highlight_box (&mdgui->playlistbox.box);
+                MDGUI__highlight_box (&mdgui->playlistbox.listbox.box);
 
                 break;
 
@@ -543,7 +554,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 mdgui->potential_component = MDGUI__PLAYLIST;
                 MDGUI__unhighlight_box (&mdgui->metabox.box);
-                MDGUI__highlight_box (&mdgui->playlistbox.box);
+                MDGUI__highlight_box (&mdgui->playlistbox.listbox.box);
 
                 break;
 
@@ -594,7 +605,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 mdgui->potential_component = MDGUI__METABOX;
 
-                MDGUI__unhighlight_box (&mdgui->playlistbox.box);
+                MDGUI__unhighlight_box (&mdgui->playlistbox.listbox.box);
                 MDGUI__highlight_box (&mdgui->metabox.box);
                 break;
 
@@ -653,9 +664,9 @@ void MDGUI__update_size (MDGUI__manager_t *mdgui) {
     mdgui->metabox.box.height = box_height - mdgui->meta_top;
     mdgui->metabox.box.width = box_width;
 
-    mdgui->playlistbox.box.x = MDGUI__get_box_x (mdgui, 2);
-    mdgui->playlistbox.box.height = box_height;
-    mdgui->playlistbox.box.width = box_width;
+    mdgui->playlistbox.listbox.box.x = MDGUI__get_box_x (mdgui, 2);
+    mdgui->playlistbox.listbox.box.height = box_height;
+    mdgui->playlistbox.listbox.box.width = box_width;
 }
 
 void *terminal_change (void *data) {
@@ -687,7 +698,7 @@ void *terminal_change (void *data) {
 
             if (mdgui->filebox.listbox.box.height >= mdgui->filebox.listbox.str_array.cnum) mdgui->filebox.listbox.num_first = 0;
 
-            if (mdgui->playlistbox.box.height >= mdgui->playlistbox.str_array.cnum) mdgui->playlistbox.num_first = 0;
+            if (mdgui->playlistbox.listbox.box.height >= mdgui->playlistbox.listbox.str_array.cnum) mdgui->playlistbox.listbox.num_first = 0;
 
             clear();
 

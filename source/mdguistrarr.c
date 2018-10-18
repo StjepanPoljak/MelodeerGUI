@@ -31,10 +31,7 @@ void MDGUI__str_array_append (MDGUI__str_array_t *str_array, char *string) {
         temp = malloc (sizeof (*(str_array->carray)) * str_array->csize);
 
         for (int i=0; i<prev_cnum; i++) {
-    //
-    // MDGUI__init (&mdgui);
-    //
-    // MDGUI__draw (&mdgui);
+
             int str_size = MDGUI__get_string_size (str_array->carray[i]) + 1;
 
             temp[i] = malloc (sizeof (**(str_array->carray)) * str_size);
@@ -81,7 +78,9 @@ char MDGUI__small_cap (char c) {
     return (c >= 65 && c <= 90) ? c + 32 : c;
 }
 
-int MDGUI__partition (MDGUI__str_array_t *str_array, bool(*compare_f)(char *, char*), int lo, int hi) {
+int MDGUI__partition (MDGUI__str_array_t *str_array,
+                      bool (*compare_f) (char *, char*),
+                      int lo, int hi) {
 
     char *pivot = str_array->carray[hi];
     int i = lo - 1;
@@ -107,7 +106,9 @@ int MDGUI__partition (MDGUI__str_array_t *str_array, bool(*compare_f)(char *, ch
     return i+1;
 }
 
-void MDGUI__sort_step (MDGUI__str_array_t *str_array, bool(*compare_f)(char *, char*), int lo, int hi) {
+void MDGUI__sort_step (MDGUI__str_array_t *str_array,
+                       bool (*compare_f) (char *, char*),
+                       int lo, int hi) {
 
     if (lo < hi) {
 
@@ -146,7 +147,34 @@ bool MDGUI__str_array_is_empty (MDGUI__str_array_t *str_array) {
     return str_array->cnum <= 0;
 }
 
-void MDGUI__str_array_copy (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest, int from_i, int to_i, int ignore) {
+
+
+void MDGUI__str_transform_ignore (void *data, char *src, char **dest) {
+
+    int ignore = *((int *)data);
+
+    int string_size = MDGUI__get_string_size (src) + 1;
+
+    ignore = ignore < string_size ? ignore : 0;
+
+    int new_str_size = string_size - ignore;
+
+    *dest = malloc (sizeof (**dest) * new_str_size);
+
+    for (int i=0; i<new_str_size; i++) (*dest)[i] = src[i+ignore];
+}
+
+void MDGUI__str_array_copy (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest,
+                            int from_i, int to_i, int ignore) {
+
+    MDGUI__str_array_copy_raw (str_array_source, str_array_dest, from_i, to_i,
+                              (void *)(&ignore), MDGUI__str_transform_ignore);
+
+}
+
+void MDGUI__str_array_copy_raw (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest,
+                                int from_i, int to_i, void *data,
+                                void (*transform) (void *data, char *src, char **dest)) {
 
     if (MDGUI__str_array_is_empty (str_array_source)) return;
 
@@ -172,24 +200,39 @@ void MDGUI__str_array_copy (MDGUI__str_array_t *str_array_source, MDGUI__str_arr
 
     for (int i=0; i<size; i++) {
 
-        int string_size = MDGUI__get_string_size (&(str_array_source->carray[i+from_i][ignore])) + 1;
+        char *res = NULL;
 
-        str_array_dest->carray[i] = malloc (sizeof(*str_array_dest->carray) * string_size);
+        if (transform) transform (data, str_array_source->carray[i+from_i], &res);
 
-        for (int j=0; j<string_size; j++) str_array_dest->carray[i][j] = str_array_source->carray[i+from_i][j+ignore];
+        else {
+
+            int ignore = 1;
+
+            MDGUI__str_transform_ignore ((void *)(&ignore), str_array_source->carray[i+from_i], &res);
+        }
+
+        int string_size = MDGUI__get_string_size (res) + 1;
+
+        str_array_dest->carray[i] = malloc (sizeof (*str_array_dest->carray) * string_size);
+
+        for (int j=0; j<string_size; j++) str_array_dest->carray[i][j] = res[j];
+
+        if (res) free (res);
     }
 
     return;
 }
 
-void MDGUI__str_array_copy_all_from (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest, int from_i, int ignore) {
+void MDGUI__str_array_copy_all_from (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest,
+                                     int from_i, int ignore) {
 
     MDGUI__str_array_copy (str_array_source, str_array_dest, from_i, str_array_source->cnum - 1, ignore);
 
     return;
 }
 
-void MDGUI__str_array_copy_all (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest, int ignore) {
+void MDGUI__str_array_copy_all (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest,
+                                int ignore) {
 
     MDGUI__str_array_copy_all_from (str_array_source, str_array_dest, 0, ignore);
 
