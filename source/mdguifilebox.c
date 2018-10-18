@@ -50,6 +50,9 @@ bool MDGUIFB__return (MDGUI__file_box_t *filebox) {
 
         MDGUIFB__get_dir_contents (filebox);
 
+        filebox->listbox.num_selected = 0;
+        filebox->listbox.num_first = 0;
+
         MDGUIFB__redraw (filebox);
 
         break;

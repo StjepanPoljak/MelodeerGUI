@@ -6,17 +6,25 @@
 
 #include "mdguilistbox.h"
 
+struct MDGUI__file_box_stack {
+
+    char *dir;
+    int num_highlighted;
+    int num_first;
+};
+
 struct MDGUI__file_box {
 
     MDGUI__listbox_t listbox;
 
+    // will replace this with stack from above
     char *curr_dir;
 };
 
 typedef struct MDGUI__file_box MDGUI__file_box_t;
 
 MDGUI__file_box_t   MDGUIFB__create     (char *name, int x, int y,
-                                         int height, int width);
+                                        int height, int width);
 
 void    MDGUIFB__draw                   (MDGUI__file_box_t *filebox);
 

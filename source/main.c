@@ -39,41 +39,7 @@ void MDGUI__handle_error (char *error) {
     return;
 }
 
-
-
 char *will_play = NULL;
-
-void MDGUI__start_playing () {
-
-    // if (MDGUI__playlist_current < MDGUI__playlist_size){
-    //
-    //     int curr_wp_size = MDGUI__get_string_size (MDGUI__playlist [MDGUI__playlist_current]) + 1;
-    //
-    //     if (will_play) will_play = realloc(will_play, sizeof(*will_play)*curr_wp_size);
-    //     else will_play = malloc(sizeof(*will_play)*curr_wp_size);
-    //
-    //     for (int i=0; i<curr_wp_size; i++)
-    //
-    //         will_play[i] = MDGUI__playlist[MDGUI__playlist_current][i];
-    //
-    //     MDGUI__playlist_current++;
-    // }
-    // else return;
-
-    // if (will_play) {
-
-    //     mdgui.current_play_state = MDGUI__INITIALIZING;
-
-    //     pthread_t melodeer_thread;
-
-    //     if (pthread_create (&melodeer_thread, NULL, MDGUI__play, (void *)will_play))
-
-    //         MDGUI__log ("(!) Could not create thread!", mdgui.tinfo);
-    // }
-
-    return;
-}
-
 
 
 int main (int argc, char *argv[]) {
@@ -131,7 +97,6 @@ void MD__handle_metadata (MD__metadata_t metadata) {
 
     mdgui.metabox.metadata = metadata;
     mdgui.metabox.metadata_present = true;
-
 }
 
 void transform (volatile MD__buffer_chunk_t *curr_chunk,

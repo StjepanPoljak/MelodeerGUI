@@ -10,6 +10,7 @@ void MDGUI__complete (MDGUI__manager_t *mdgui);
 bool key_pressed (MDGUI__manager_t *mdgui, char key[3]);
 void *terminal_change (void *data);
 void MDGUI__draw_logo (MDGUI__manager_t *mdgui);
+void MDGUI__start_playing (MDGUI__manager_t *mdgui);
 
 int MDGUI__get_box_width (MDGUI__manager_t *mdgui) {
 
@@ -364,9 +365,9 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         case MDGUI__FILEBOX:
 
-            if (mdgui->current_play_state == MDGUI__WAITING_TO_STOP || mdgui->current_play_state == MDGUI__INITIALIZING) break;
-
             if (MDGUIFB__return (&mdgui->filebox)) {
+
+                if (mdgui->current_play_state == MDGUI__WAITING_TO_STOP || mdgui->current_play_state == MDGUI__INITIALIZING) break;
 
                 struct MDGUI__prepend_info pr_info;
 
@@ -376,28 +377,28 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
                 MDGUI__str_array_copy_raw (&mdgui->filebox.listbox.str_array, &mdgui->playlistbox.filenames, mdgui->filebox.listbox.num_selected, mdgui->filebox.listbox.str_array.cnum - 1, &pr_info, MDGUI__str_transform_prepend_dir);
 
                 MDGUIPB__redraw (&mdgui->playlistbox);
+
+                MDGUI__start_playing (mdgui);
             }
 
             break;
 
         case MDGUI__PLAYLIST:
+            //
+            // mdgui->playlistbox.num_playing = mdgui->playlistbox.listbox.num_selected;
+            //
+            // if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
+            //
+            //     mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
+            //
+            //     MD__stop (mdgui->curr_playing);
+            //
+            //     MDGUI__log ("Waiting to stop.", mdgui->tinfo);
+            //
+            // } else {
 
-            if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
-
-                mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
-
-                MD__stop (mdgui->curr_playing);
-
-                //MDGUI__playlist_current = MDGUI__playlist_highlighted;
-
-                MDGUI__log ("Waiting to stop.", mdgui->tinfo);
-
-            } else {
-
-                //MDGUI__playlist_current = MDGUI__playlist_highlighted;
-
-                // MDGUI__start_playing ();
-            }
+                MDGUI__start_playing (mdgui);
+            // }
 
             break;
 
@@ -689,6 +690,34 @@ void *terminal_change (void *data) {
     }
 
     return NULL;
+}
+
+void MDGUI__start_playing (MDGUI__manager_t *mdgui) {
+
+    mdgui->playlistbox.num_playing = mdgui->playlistbox.listbox.num_selected;
+
+    if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
+
+        mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
+
+        MD__stop (mdgui->curr_playing);
+
+        MDGUI__log ("Waiting to stop.", mdgui->tinfo);
+    }
+    else if (mdgui->playlistbox.num_playing < 0
+     || mdgui->playlistbox.num_playing >= mdgui->playlistbox.filenames.cnum)
+
+        return;
+
+    mdgui->current_play_state = MDGUI__INITIALIZING;
+
+    pthread_t melodeer_thread;
+
+    if (pthread_create (&mdgui->melodeer_thread, NULL, MDGUI__play, (void *)mdgui))
+
+        MDGUI__log ("(!) Could not create thread!", mdgui->tinfo);
+
+    return;
 }
 
 void MDGUI__complete (MDGUI__manager_t *mdgui) {
