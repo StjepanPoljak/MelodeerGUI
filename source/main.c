@@ -1,13 +1,3 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <pthread.h>
-
-#include <melodeer/mdcore.h>
-#include <melodeer/mdflac.h>
-#include <melodeer/mdwav.h>
-#include <melodeer/mdmpg123.h>
-//#include <melodeer/mdutils.h>
-
 #include "mdgui.h"
 
 
@@ -84,11 +74,15 @@ void MDGUI__start_playing () {
     return;
 }
 
+
+
 int main (int argc, char *argv[]) {
 
     MDGUI__init (&mdgui);
 
-    // MDGUI__draw (&mdgui);
+    MDGUI__start (&mdgui);
+
+    MDGUI__deinit (&mdgui);
 
     return 0;
 }

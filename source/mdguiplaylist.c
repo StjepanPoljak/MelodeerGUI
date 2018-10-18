@@ -30,31 +30,44 @@ void MDGUI__str_transform_fname (void *data, char *src, char **dest) {
 
     if (last_slash == -1) return;
 
-    *dest = malloc (sizeof (**dest) * (last_slash + 1));
+    int final_size = src_size - last_slash - 1;
 
-    for (int i=0; i<last_slash; i++) (*dest)[i] = src[i];
+    *dest = malloc (sizeof (**dest) * final_size);
 
-    (*dest)[last_slash] = 0;
+    for (int i=0; i<final_size; i++) (*dest)[i] = src[i + last_slash + 1];
+
+    return;
+}
+
+void MDGUIPB__update (MDGUI__playlist_box_t *playlistbox) {
+
+    if (MDGUI__str_array_is_empty (&playlistbox->filenames)) {
+
+        if (!MDGUI__str_array_is_empty (&playlistbox->listbox.str_array))
+
+            MDGUI__str_array_empty (&playlistbox->listbox.str_array);
+    }
+    else {
+
+        MDGUI__str_array_copy_raw (&playlistbox->filenames, &playlistbox->listbox.str_array,
+                                0, playlistbox->filenames.cnum - 1, NULL, MDGUI__str_transform_fname);
+    }
 
     return;
 }
 
 void MDGUIPB__draw (MDGUI__playlist_box_t *playlistbox) {
 
+    MDGUIPB__update (playlistbox);
+
     MDGUILB__draw (&playlistbox->listbox, playlistbox->num_playing);
 }
 
 void MDGUIPB__redraw (MDGUI__playlist_box_t *playlistbox) {
 
+    MDGUIPB__update (playlistbox);
+
     MDGUILB__redraw (&playlistbox->listbox, playlistbox->num_playing);
-}
-
-void MDGUIPB__update (MDGUI__playlist_box_t *playlistbox, void (*transform)(char *src, char **dest)) {
-
-    MDGUI__str_array_copy_raw (&playlistbox->filenames, &playlistbox->listbox.str_array,
-                               0, playlistbox->filenames.cnum - 1, NULL, MDGUI__str_transform_fname);
-
-    return;
 }
 
 void MDGUIPB__deinit (MDGUI__playlist_box_t *playlistbox) {

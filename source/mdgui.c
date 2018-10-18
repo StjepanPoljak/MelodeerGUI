@@ -3,65 +3,10 @@
 #include <melodeer/mdflac.h>
 #include <melodeer/mdwav.h>
 #include <melodeer/mdmpg123.h>
-
-
-enum MD__filetype { MD__FLAC, MD__WAV, MD__MP3, MD__UNKNOWN };
-
-typedef enum MD__filetype MD__filetype;
-
-MD__filetype MD__get_filetype (const char *filename) {
-
-    char curr = filename [0];
-    unsigned int last_dot_position = -1;
-    unsigned int i = 0;
-
-    while (curr != 0) {
-
-        if (curr == '.') {
-
-            last_dot_position = i;
-        }
-
-        curr = filename [i++];
-    }
-
-    if (last_dot_position == -1) return MD__UNKNOWN;
-
-    unsigned int diff = i - last_dot_position;
-
-    if (diff == 5) {
-
-        if (filename [last_dot_position]     == 'f'
-         && filename [last_dot_position + 1] == 'l'
-         && filename [last_dot_position + 2] == 'a'
-         && filename [last_dot_position + 3] == 'c') {
-
-            return MD__FLAC;
-        }
-    }
-
-    if (diff == 4) {
-
-        if (filename [last_dot_position]     == 'w'
-         && filename [last_dot_position + 1] == 'a'
-         && filename [last_dot_position + 2] == 'v') {
-
-            return MD__WAV;
-        }
-
-        if (filename [last_dot_position]     == 'm'
-         && filename [last_dot_position + 1] == 'p'
-         && filename [last_dot_position + 2] == '3') {
-
-            return MD__MP3;
-        }
-    }
-
-    return MD__UNKNOWN;
-}
+#include <melodeer/mdutils.h>
 
 void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI__manager_t *mdgui, char [3]), void (on_completion)(MDGUI__manager_t *mdgui));
-void MDGUI__deinit (MDGUI__manager_t *mdgui);
+void MDGUI__complete (MDGUI__manager_t *mdgui);
 bool key_pressed (MDGUI__manager_t *mdgui, char key[3]);
 void *terminal_change (void *data);
 void MDGUI__draw_logo (MDGUI__manager_t *mdgui);
@@ -90,8 +35,6 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
     mdgui->meta_top = 7;
     mdgui->meta_bottom = 2;
 
-    MDAL__initialize (4096, 4, 4);
-
     pthread_mutex_init (&mdgui->mutex, NULL);
 
     mdgui->tinfo = MDGUI__get_terminal_information ();
@@ -113,6 +56,13 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
 
     MDGUI__play_state volatile current_play_state = MDGUI__NOT_PLAYING;
 
+    return true;
+}
+
+bool MDGUI__start (MDGUI__manager_t *mdgui) {
+
+    MDAL__initialize (4096, 4, 4);
+
     initscr ();
 
     clear ();
@@ -128,7 +78,7 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
         return false;
     }
 
-    MDGUI__wait_for_keypress (mdgui, key_pressed, MDGUI__deinit);
+    MDGUI__wait_for_keypress (mdgui, key_pressed, MDGUI__complete);
 
     pthread_join (mdgui->terminal_thread, NULL);
 
@@ -194,8 +144,27 @@ void MDGUI__str_transform_prepend_dir (void *data, char *src, char **dest) {
 
     struct MDGUI__prepend_info *dir_info = ((struct MDGUI__prepend_info *)data);
 
-    *dest = malloc (sizeof (**dest) * dir_info->curr_dir_str_size);
+    if (dir_info->curr_dir[dir_info->curr_dir_str_size - 1] == 0) dir_info->curr_dir_str_size--;
 
+    bool needs_slash = dir_info->curr_dir[dir_info->curr_dir_str_size - 1] != '/';
+
+    int src_str_size = MDGUI__get_string_size (src);
+
+    int new_size = dir_info->curr_dir_str_size + src_str_size + (needs_slash ? 1 : 0);
+
+    *dest = malloc (sizeof (**dest) * new_size);
+
+    for (int i=0; i<dir_info->curr_dir_str_size; i++) (*dest)[i] = dir_info->curr_dir[i];
+
+    if (needs_slash) (*dest)[dir_info->curr_dir_str_size] = '/';
+
+    int start = needs_slash ? 1 : 0;
+
+    int end = src_str_size + (needs_slash ? 1 : 0);
+
+    for (int i=start; i<end; i++) (*dest)[dir_info->curr_dir_str_size+i] = src[i-start + 1];
+
+    return;
 }
 
 void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI__manager_t *mdgui, char [3]), void (on_completion)(MDGUI__manager_t *mdgui)) {
@@ -203,12 +172,12 @@ void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI
     struct termios orig_term_attr;
     struct termios new_term_attr;
 
-    char chain[3];
+    char chain [3];
 
-    tcgetattr (fileno(stdin), &orig_term_attr);
+    tcgetattr (fileno (stdin), &orig_term_attr);
     memcpy (&new_term_attr, &orig_term_attr, sizeof (struct termios));
     new_term_attr.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr (fileno(stdin), TCSANOW, &new_term_attr);
+    tcsetattr (fileno (stdin), TCSANOW, &new_term_attr);
 
     fd_set input_set, output_set;
 
@@ -399,9 +368,12 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             if (MDGUIFB__return (&mdgui->filebox)) {
 
-                // MDGUI__str_array_copy_all_from (&mdgui->filebox.listbox.str_array,
-                //                                 &mdgui->playlistbox.str_array,
-                //                                 mdgui->filebox.listbox.num_selected, 1);
+                struct MDGUI__prepend_info pr_info;
+
+                pr_info.curr_dir = mdgui->filebox.curr_dir;
+                pr_info.curr_dir_str_size = MDGUI__get_string_size (mdgui->filebox.curr_dir);
+
+                MDGUI__str_array_copy_raw (&mdgui->filebox.listbox.str_array, &mdgui->playlistbox.filenames, mdgui->filebox.listbox.num_selected, mdgui->filebox.listbox.str_array.cnum - 1, &pr_info, MDGUI__str_transform_prepend_dir);
 
                 MDGUIPB__redraw (&mdgui->playlistbox);
             }
@@ -466,7 +438,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             MDGUILB__down_arrow (&mdgui->playlistbox.listbox);
             MDGUIPB__redraw (&mdgui->playlistbox);
-            
+
             break;
 
         default:
@@ -719,7 +691,7 @@ void *terminal_change (void *data) {
     return NULL;
 }
 
-void MDGUI__deinit (MDGUI__manager_t *mdgui) {
+void MDGUI__complete (MDGUI__manager_t *mdgui) {
 
     MDGUI__mutex_lock (mdgui);
 
@@ -749,6 +721,15 @@ void MDGUI__deinit (MDGUI__manager_t *mdgui) {
 
 
     MDAL__close();
+}
+
+void MDGUI__deinit (MDGUI__manager_t *mdgui) {
+
+    pthread_mutex_destroy (&mdgui->mutex);
+
+    MDGUIMB__deinit (&mdgui->metabox);
+    MDGUIPB__deinit (&mdgui->playlistbox);
+    MDGUIFB__deinit (&mdgui->filebox);
 }
 
 void MDGUI__draw_logo (MDGUI__manager_t *mdgui) {

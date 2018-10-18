@@ -86,6 +86,8 @@ typedef struct MDGUI__manager MDGUI__manager_t;
 
 bool            MDGUI__init                     (MDGUI__manager_t *mdgui);
 
+bool            MDGUI__start                    (MDGUI__manager_t *mdgui);
+
 void            MDGUI__log                      (const char *log, MDGUI__terminal tinfo);
 
 void            MDGUI__draw                     (MDGUI__manager_t *mdgui);
@@ -95,6 +97,8 @@ void            MDGUI__mutex_lock               (MDGUI__manager_t *mdgui);
 void            MDGUI__mutex_unlock             (MDGUI__manager_t *mdgui);
 
 MDGUI__terminal MDGUI__get_terminal_information ();
+
+void            MDGUI__deinit                   (MDGUI__manager_t *mdgui);
 
 #endif
 

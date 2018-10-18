@@ -74,19 +74,13 @@ void MDGUIFB__get_current_dir (MDGUI__file_box_t *filebox) {
         return;
     }
 
-    if (!filebox->curr_dir) {
+    int cwd_str_size = MDGUI__get_string_size (cwd) + 1;
 
-        char *newdir = malloc(sizeof(newdir)*(MDGUI__get_string_size(cwd)+1));
-        for(int i=0;i<MDGUI__get_string_size(cwd); i++) newdir[i] = cwd[i];
-        newdir[MDGUI__get_string_size(cwd)] = 0;
-        filebox->curr_dir = newdir;
-    }
-    else {
+    if (filebox->curr_dir) filebox->curr_dir = realloc (filebox->curr_dir, sizeof (filebox->curr_dir) * cwd_str_size);
 
-        char *oldcurrdir = filebox->curr_dir;
-        filebox->curr_dir = cwd;
-        free (oldcurrdir);
-    }
+    else filebox->curr_dir = malloc (sizeof (filebox->curr_dir) * cwd_str_size);
+
+    for(int i=0; i<cwd_str_size; i++) filebox->curr_dir[i] = cwd[i];
 
     return;
 }

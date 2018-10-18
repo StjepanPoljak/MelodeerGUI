@@ -67,3 +67,8 @@ void MDGUIMB__draw (MDGUI__meta_box_t *metabox) {
     free (data_size_string);
 
 }
+
+void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {
+
+    MDGUI__box_deinit (&metabox->box);
+}

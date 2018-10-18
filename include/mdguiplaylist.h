@@ -13,15 +13,14 @@ struct MDGUI__playlist_box {
 
 typedef struct MDGUI__playlist_box MDGUI__playlist_box_t;
 
-MDGUI__playlist_box_t MDGUIPB__create (char *name, int x, int y, int height, int width);
+MDGUI__playlist_box_t   MDGUIPB__create     (char *name, int x, int y,
+                                             int height, int width);
 
-void MDGUIPB__draw (MDGUI__playlist_box_t *playlistbox);
+void                    MDGUIPB__draw       (MDGUI__playlist_box_t *playlistbox);
 
-void MDGUIPB__redraw (MDGUI__playlist_box_t *playlistbox);
+void                    MDGUIPB__redraw     (MDGUI__playlist_box_t *playlistbox);
 
-void MDGUIPB__update (MDGUI__playlist_box_t *playlistbox, void (*transform)(char *, char **));
-
-void MDGUIPB__deinit (MDGUI__playlist_box_t *playlistbox);
+void                    MDGUIPB__deinit     (MDGUI__playlist_box_t *playlistbox);
 
 #endif
 

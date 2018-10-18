@@ -30,4 +30,4 @@ run:
 .PHONY=debug
 debug:
 	make $(proj)
-	valgrind -v --leak-check=full --track-origins=yes ./$(proj)
+	valgrind -v --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(proj)

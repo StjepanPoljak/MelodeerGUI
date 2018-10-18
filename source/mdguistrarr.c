@@ -162,6 +162,8 @@ void MDGUI__str_transform_ignore (void *data, char *src, char **dest) {
     *dest = malloc (sizeof (**dest) * new_str_size);
 
     for (int i=0; i<new_str_size; i++) (*dest)[i] = src[i+ignore];
+
+    return;
 }
 
 void MDGUI__str_array_copy (MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest,
@@ -188,13 +190,12 @@ void MDGUI__str_array_copy_raw (MDGUI__str_array_t *str_array_source, MDGUI__str
 
     if (str_array_dest->csize < size) {
 
-        int allocsize = sizeof(*str_array_dest->carray) * size;
+        int allocsize = sizeof(str_array_dest->carray) * size;
 
         if (str_array_dest->carray) str_array_dest->carray = realloc (str_array_dest->carray, allocsize);
 
         else str_array_dest->carray = malloc (allocsize);
 
-        str_array_dest->cnum = size;
         str_array_dest->csize = size;
     }
 
@@ -219,6 +220,8 @@ void MDGUI__str_array_copy_raw (MDGUI__str_array_t *str_array_source, MDGUI__str
 
         if (res) free (res);
     }
+
+    str_array_dest->cnum = size;
 
     return;
 }

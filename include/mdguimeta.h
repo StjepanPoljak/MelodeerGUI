@@ -17,7 +17,7 @@ MDGUI__meta_box_t   MDGUIMB__create     (char *name, int x, int y, int height, i
 
 void    MDGUIMB__draw                   (MDGUI__meta_box_t *metabox);
 
-void    MDGUIMB__deinit                 ();
+void    MDGUIMB__deinit                 (MDGUI__meta_box_t *metabox);
 
 #endif
 
