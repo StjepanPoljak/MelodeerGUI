@@ -108,7 +108,7 @@ void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_selected) {
                 break;
             }
 
-        int chars_to_print = str_size >= width ? (dirflag ? width : width - 1) : str_size;
+        int chars_to_print = str_size >= width - 3 ? (dirflag ? width - 3 : width - 1 - 3) : str_size;
 
         if (listbox->str_array.carray[i][0] == 'd' && dirflag) attron (A_BOLD);
 
@@ -131,10 +131,16 @@ void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_selected) {
     refresh ();
 }
 
-void MDGUILB__draw (MDGUI__listbox_t *listbox, int num_highlighted) {
+void MDGUILB__draw (MDGUI__listbox_t *listbox, int num_selected) {
 
     MDGUI__draw_box (&listbox->box);
-    MDGUILB__print_out (listbox, num_highlighted);
+    MDGUILB__print_out (listbox, num_selected);
+}
+
+void MDGUILB__redraw (MDGUI__listbox_t *listbox, int num_selected) {
+
+    MDGUI__draw_box_opt (&listbox->box, true);
+    MDGUILB__print_out (listbox, num_selected);
 }
 
 void MDGUILB__deinit (MDGUI__listbox_t *listbox) {

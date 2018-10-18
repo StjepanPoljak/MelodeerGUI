@@ -69,6 +69,7 @@ struct MDGUI__manager {
     MDGUI__meta_box_t metabox;
 
     int curr_in_playlist;
+    char *playlist_dir;
 
     MDGUI__play_state volatile current_play_state;
 

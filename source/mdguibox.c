@@ -25,6 +25,13 @@ MDGUI__box_t MDGUI__box_create (char *name, int x, int y, int height, int width)
 
 void MDGUI__draw_box (MDGUI__box_t *box) {
 
+    MDGUI__draw_box_opt (box, false);
+
+    return;
+}
+
+void MDGUI__draw_box_opt (MDGUI__box_t *box, bool clear_contents) {
+
     bool box_highlighted = box->highlighted;
 
     int term_pos_x = box->x;
@@ -40,12 +47,14 @@ void MDGUI__draw_box (MDGUI__box_t *box) {
 
         for (int j=0; j<width; j++) {
 
-            if (j==0 || j==width-1) {
+            if ((j==0 || j==width-1) && !clear_contents) {
 
-                if (i==0 || i==height-1) curr = '*';
-                else curr = '|';
+                if ((i==0 || i==height-1) && !clear_contents) curr = '*';
+                else if (!clear_contents) curr = '|';
             }
-            else if (i==0 || i==height-1) curr = '-';
+            else if ((i==0 || i==height-1) && !clear_contents) curr = '-';
+
+            else if (!(i==0 || i==height-1) && !((j==0 || j==width-1)) && clear_contents) curr = ' ';
 
             else continue;
 

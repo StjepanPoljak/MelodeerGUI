@@ -1,7 +1,67 @@
 #include "mdgui.h"
 
+#include <melodeer/mdflac.h>
+#include <melodeer/mdwav.h>
+#include <melodeer/mdmpg123.h>
+
+
+enum MD__filetype { MD__FLAC, MD__WAV, MD__MP3, MD__UNKNOWN };
+
+typedef enum MD__filetype MD__filetype;
+
+MD__filetype MD__get_filetype (const char *filename) {
+
+    char curr = filename [0];
+    unsigned int last_dot_position = -1;
+    unsigned int i = 0;
+
+    while (curr != 0) {
+
+        if (curr == '.') {
+
+            last_dot_position = i;
+        }
+
+        curr = filename [i++];
+    }
+
+    if (last_dot_position == -1) return MD__UNKNOWN;
+
+    unsigned int diff = i - last_dot_position;
+
+    if (diff == 5) {
+
+        if (filename [last_dot_position]     == 'f'
+         && filename [last_dot_position + 1] == 'l'
+         && filename [last_dot_position + 2] == 'a'
+         && filename [last_dot_position + 3] == 'c') {
+
+            return MD__FLAC;
+        }
+    }
+
+    if (diff == 4) {
+
+        if (filename [last_dot_position]     == 'w'
+         && filename [last_dot_position + 1] == 'a'
+         && filename [last_dot_position + 2] == 'v') {
+
+            return MD__WAV;
+        }
+
+        if (filename [last_dot_position]     == 'm'
+         && filename [last_dot_position + 1] == 'p'
+         && filename [last_dot_position + 2] == '3') {
+
+            return MD__MP3;
+        }
+    }
+
+    return MD__UNKNOWN;
+}
+
 void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI__manager_t *mdgui, char [3]), void (on_completion)(MDGUI__manager_t *mdgui));
-void mdgui_completion (MDGUI__manager_t *mdgui);
+void MDGUI__deinit (MDGUI__manager_t *mdgui);
 bool key_pressed (MDGUI__manager_t *mdgui, char key[3]);
 void *terminal_change (void *data);
 void MDGUI__draw_logo (MDGUI__manager_t *mdgui);
@@ -36,7 +96,7 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
 
     mdgui->tinfo = MDGUI__get_terminal_information ();
 
-    mdgui->curr_playing = NULL;
+    // mdgui->curr_playing = NULL;
     mdgui->curr_in_playlist = -1;
 
     mdgui->selected_component = MDGUI__NONE;
@@ -71,11 +131,9 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
         return false;
     }
 
-    MDGUI__wait_for_keypress (mdgui, key_pressed, mdgui_completion);
+    MDGUI__wait_for_keypress (mdgui, key_pressed, MDGUI__deinit);
 
     pthread_join (mdgui->terminal_thread, NULL);
-
-
 
     return true;
 }
@@ -182,6 +240,57 @@ void MDGUI__draw (MDGUI__manager_t *mdgui) {
     MDGUIMB__draw (&mdgui->metabox);
 }
 
+void *MDGUI__play (void *data) {
+
+    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
+
+    MD__file_t current_file;
+
+    void *(* decoder)(void *) = NULL;
+
+    current_file.MD__buffer_transform = NULL;
+
+    MD__filetype type = MD__get_filetype ((char *)data);
+
+    switch (type) {
+
+    case MD__FLAC:
+        decoder = MDFLAC__start_decoding;
+        break;
+
+    case MD__WAV:
+        decoder = MDWAV__parse;
+        break;
+
+    case MD__MP3:
+        decoder = MDMPG123__decoder;
+        break;
+
+    default:
+        MDGUI__log ("(!) Unknown file type!",mdgui->tinfo);
+        mdgui->current_play_state = MDGUI__NOT_PLAYING;
+        return NULL;
+    }
+
+    if (MD__initialize (&current_file, (char *)data)) {
+
+        mdgui->curr_playing = &current_file;
+
+        // MD__play (&current_file, decoder, MD__handle_metadata, MDGUI__started_playing,
+        //           MDGUI__handle_error, NULL, MDGUI__play_complete);
+
+    } else {
+
+        MDGUI__log ("(!) Could not open file!", mdgui->tinfo);
+        mdgui->current_play_state = MDGUI__NOT_PLAYING;
+        return NULL;
+    }
+
+    mdgui->curr_playing = NULL;
+
+    return NULL;
+}
+
 bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
     if (key[0] == 27 && key[1] == 0 && key[2] == 0) {
@@ -277,6 +386,15 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             if (mdgui->current_play_state == MDGUI__WAITING_TO_STOP || mdgui->current_play_state == MDGUI__INITIALIZING) break;
 
+            if (MDGUIFB__return (&mdgui->filebox)) {
+
+                MDGUI__str_array_copy_all_from (&mdgui->filebox.listbox.str_array,
+                                                &mdgui->playlistbox.str_array,
+                                                mdgui->filebox.listbox.num_selected, 1);
+
+                MDGUILB__redraw (&mdgui->playlistbox, -1);
+            }
+
             break;
 
         case MDGUI__PLAYLIST:
@@ -329,14 +447,14 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
         case MDGUI__FILEBOX:
 
             MDGUILB__down_arrow (&mdgui->filebox.listbox);
-            MDGUILB__print_out (&mdgui->filebox.listbox, -1);
+            MDGUIFB__redraw (&mdgui->filebox);
 
             break;
 
         case MDGUI__PLAYLIST:
 
             MDGUILB__down_arrow (&mdgui->playlistbox);
-            MDGUILB__print_out (&mdgui->playlistbox, mdgui->curr_in_playlist);
+            MDGUILB__redraw (&mdgui->playlistbox, mdgui->curr_in_playlist);
             
             break;
 
@@ -372,14 +490,14 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
         case MDGUI__FILEBOX:
 
             MDGUILB__up_arrow (&mdgui->filebox.listbox);
-            MDGUILB__print_out (&mdgui->filebox.listbox, -1);
+            MDGUIFB__redraw (&mdgui->filebox);
 
             break;
 
         case MDGUI__PLAYLIST:
 
             MDGUILB__up_arrow (&mdgui->playlistbox);
-            MDGUILB__print_out (&mdgui->playlistbox, mdgui->curr_in_playlist);
+            MDGUILB__redraw (&mdgui->playlistbox, mdgui->curr_in_playlist);
 
             break;
 
@@ -590,7 +708,7 @@ void *terminal_change (void *data) {
     return NULL;
 }
 
-void mdgui_completion (MDGUI__manager_t *mdgui) {
+void MDGUI__deinit (MDGUI__manager_t *mdgui) {
 
     MDGUI__mutex_lock (mdgui);
 
@@ -618,7 +736,6 @@ void mdgui_completion (MDGUI__manager_t *mdgui) {
         MDGUI__mutex_unlock (mdgui);
     }
 
-    // MD__cleanup ();
 
     MDAL__close();
 }

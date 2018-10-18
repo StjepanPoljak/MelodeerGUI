@@ -6,9 +6,11 @@
 #include <melodeer/mdflac.h>
 #include <melodeer/mdwav.h>
 #include <melodeer/mdmpg123.h>
-#include <melodeer/mdutils.h>
+//#include <melodeer/mdutils.h>
 
 #include "mdgui.h"
+
+
 
 void            MD__handle_metadata     (MD__metadata_t metadata);
 unsigned int    MD__get_seconds         (volatile MD__buffer_chunk_t *curr_chunk,
@@ -26,7 +28,7 @@ void MDGUI__play_complete ();
 
 void MDGUI__started_playing () {
 
-    mdgui.current_play_state = MDGUI__PLAYING;
+    // mdgui.current_play_state = MDGUI__PLAYING;
 
     // redraw_playlist_box ();
 
@@ -47,52 +49,7 @@ void MDGUI__handle_error (char *error) {
     return;
 }
 
-void *MDGUI__play (void *data) {
 
-    MD__file_t current_file;
-
-    void *(* decoder)(void *) = NULL;
-
-    current_file.MD__buffer_transform = transform;
-
-    MD__filetype type = MD__get_filetype ((char *)data);
-
-    switch (type) {
-
-    case MD__FLAC:
-        decoder = MDFLAC__start_decoding;
-        break;
-
-    case MD__WAV:
-        decoder = MDWAV__parse;
-        break;
-
-    case MD__MP3:
-        decoder = MDMPG123__decoder;
-        break;
-
-    default:
-        MDGUI__log ("(!) Unknown file type!",mdgui.tinfo);
-        mdgui.current_play_state = MDGUI__NOT_PLAYING;
-        return NULL;
-    }
-
-    if (MD__initialize (&current_file, (char *)data)) {
-
-        mdgui.curr_playing = &current_file;
-
-        MD__play (&current_file, decoder, MD__handle_metadata, MDGUI__started_playing,
-                  MDGUI__handle_error, NULL, MDGUI__play_complete);
-
-    } else {
-
-        MDGUI__log ("(!) Could not open file!", mdgui.tinfo);
-        mdgui.current_play_state = MDGUI__NOT_PLAYING;
-        return NULL;
-    }
-
-    return NULL;
-}
 
 char *will_play = NULL;
 
@@ -113,16 +70,16 @@ void MDGUI__start_playing () {
     // }
     // else return;
 
-    if (will_play) {
+    // if (will_play) {
 
-        mdgui.current_play_state = MDGUI__INITIALIZING;
+    //     mdgui.current_play_state = MDGUI__INITIALIZING;
 
-        pthread_t melodeer_thread;
+    //     pthread_t melodeer_thread;
 
-        if (pthread_create (&melodeer_thread, NULL, MDGUI__play, (void *)will_play))
+    //     if (pthread_create (&melodeer_thread, NULL, MDGUI__play, (void *)will_play))
 
-            MDGUI__log ("(!) Could not create thread!", mdgui.tinfo);
-    }
+    //         MDGUI__log ("(!) Could not create thread!", mdgui.tinfo);
+    // }
 
     return;
 }
@@ -139,39 +96,39 @@ int main (int argc, char *argv[]) {
 
 void MDGUI__play_complete () {
 
-    MDGUI__mutex_lock (&mdgui);
+    // MDGUI__mutex_lock (&mdgui);
 
-    if (mdgui.stop_all_signal) {
+    // if (mdgui.stop_all_signal) {
 
-        mdgui.stop_all_signal = false;
+    //     mdgui.stop_all_signal = false;
 
-        mdgui.current_play_state = MDGUI__NOT_PLAYING;
+    //     mdgui.current_play_state = MDGUI__NOT_PLAYING;
 
-        mdgui.metabox.metadata_present = false;
+    //     mdgui.metabox.metadata_present = false;
 
-        MDGUI__mutex_unlock (&mdgui);
+    //     MDGUI__mutex_unlock (&mdgui);
 
-        return;
-    }
+    //     return;
+    // }
 
-    if (mdgui.current_play_state == MDGUI__PROGRAM_EXIT) {
+    // if (mdgui.current_play_state == MDGUI__PROGRAM_EXIT) {
 
-        mdgui.current_play_state = MDGUI__READY_TO_EXIT;
+    //     mdgui.current_play_state = MDGUI__READY_TO_EXIT;
 
-        MDGUI__mutex_unlock (&mdgui);
+    //     MDGUI__mutex_unlock (&mdgui);
 
-        return;
-    }
+    //     return;
+    // }
 
-    MDGUI__log ("Done playing!", mdgui.tinfo);
+    // MDGUI__log ("Done playing!", mdgui.tinfo);
 
-    mdgui.current_play_state = MDGUI__NOT_PLAYING;
-    mdgui.metabox.metadata_present = false;
+    // mdgui.current_play_state = MDGUI__NOT_PLAYING;
+    // mdgui.metabox.metadata_present = false;
 
-    MDGUI__mutex_unlock (&mdgui);
-    // MDGUI__draw_meta_box_wrap ();
+    // MDGUI__mutex_unlock (&mdgui);
+    // // MDGUI__draw_meta_box_wrap ();
 
-    MDGUI__start_playing ();
+    // MDGUI__start_playing ();
 
     return;
 }

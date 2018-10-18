@@ -2,24 +2,45 @@
 
 void MDGUIFB__get_current_dir (MDGUI__file_box_t *filebox);
 
-void MDGUIFB__return (MDGUI__file_box_t *filebox) {
+bool MDGUIFB__return (MDGUI__file_box_t *filebox) {
 
-    if (filebox->listbox.num_selected < 0 || filebox->listbox.num_selected >= filebox->listbox.str_array.cnum) return;
+    if (filebox->listbox.num_selected < 0 || filebox->listbox.num_selected >= filebox->listbox.str_array.cnum) return false;
 
-    switch (filebox->listbox.str_array.carray[filebox->listbox.num_selected][0]) {
+    char *selected = filebox->listbox.str_array.carray[filebox->listbox.num_selected];
+
+    switch (selected[0]) {
 
     case 'f':
 
-        break;
+        //MDGUIFB__append_to_dirname (filebox, &(filebox->listbox.str_array.carray[filebox->listbox.num_selected][1]), filename);
+
+        return true;
 
     case 'd':
 
-        MDGUIFB__append_to_dirname (filebox, &(filebox->listbox.str_array.carray[filebox->listbox.num_selected][1]));
+        switch (MDGUI__get_string_size (&(selected[1]))) {
 
-        break;
+        case 0:
+            return false;
+
+        case 1:
+            if (selected[2] == '.') return false;
+            break;
+        case 2:
+            if (selected[2] == '.' && selected[3] == '.') return false;
+            break;
+
+        default:
+            MDGUIFB__append_to_dirname (filebox, &(selected[1]), &filebox->curr_dir);
+            break;
+        }
+
+        MDGUIFB__get_dir_contents (filebox);
+
+        MDGUIFB__redraw (filebox);
     }
 
-    return;
+    return false;
 }
 
 MDGUI__file_box_t MDGUIFB__create (char *name, int x, int y, int height, int width) {
@@ -70,7 +91,7 @@ void MDGUIFB__get_current_dir (MDGUI__file_box_t *filebox) {
     return;
 }
 
-void MDGUIFB__append_to_dirname (MDGUI__file_box_t *filebox, char *append) {
+void MDGUIFB__append_to_dirname (MDGUI__file_box_t *filebox, char *append, char *result[]) {
 
     int string_count = MDGUI__get_string_size (filebox->curr_dir);
     int append_count = MDGUI__get_string_size (append);
@@ -85,39 +106,37 @@ void MDGUIFB__append_to_dirname (MDGUI__file_box_t *filebox, char *append) {
 
     int final_size = needs_slash ? ++new_size : new_size;
 
-    if (filebox->curr_dir) filebox->curr_dir = realloc (filebox->curr_dir, sizeof (*filebox->curr_dir) * final_size);
-    else filebox->curr_dir = malloc (sizeof (*filebox->curr_dir) * final_size);
+    if (*result) *result = realloc (*result, sizeof (**result) * final_size);
+    else *result = malloc (sizeof (**result) * final_size);
 
-    for (int i=0; i < string_count; i++) filebox->curr_dir[i] = string[i];
+    for (int i=0; i < string_count; i++) (*result)[i] = string[i];
 
-    if (needs_slash) filebox->curr_dir [string_count] = '/';
+    if (needs_slash) (*result) [string_count] = '/';
 
-    for (int i=0; i < append_count; i++)
+    for (int i=0; i < append_count; i++) (*result)[i + string_count + (needs_slash ? 1 : 0)] = append[i];
 
-      filebox->curr_dir[i + string_count + (needs_slash ? 1 : 0)] = append[i];
-
-    filebox->curr_dir [new_size - 1] = 0;
+    (*result) [new_size - 1] = 0;
 }
 
-void MDGUIFB__get_parent_dir (char **new, char *curr) {
+void MDGUIFB__get_parent_dir (MDGUI__file_box_t *filebox) {
 
-    int last = MDGUI__get_string_size (curr);
+    int last = MDGUI__get_string_size (filebox->curr_dir);
 
-    char *result;
+    char *curr = malloc (sizeof (*curr) * (last + 1));
+
+    for (int i=0; i<=last; i++) curr[i] = filebox->curr_dir[i];
 
     if (last <= 1) {
 
-        result = malloc(sizeof(*result)*(last+1));
+        if (filebox->curr_dir) filebox->curr_dir = realloc (filebox->curr_dir, sizeof (*filebox->curr_dir) * (last + 1));
 
-        result[0] = curr[0];
+        else filebox->curr_dir = malloc (sizeof (*filebox->curr_dir) * (last + 1));
 
-        if (last == 1) result[1] = curr[1];
+        filebox->curr_dir[0] = curr[0];
 
-        char *oldnew = *new;
+        if (last == 1) filebox->curr_dir[1] = curr[1];
 
-        *new = result;
-
-        if (oldnew != NULL) free (oldnew);
+        if (curr) free (curr);
 
         return;
     }
@@ -128,23 +147,23 @@ void MDGUIFB__get_parent_dir (char **new, char *curr) {
 
     if (new_last == 0) new_last = 1;
 
-    result = malloc (sizeof (*result) * (new_last + 1));
+    if (filebox->curr_dir) filebox->curr_dir = realloc (filebox->curr_dir, sizeof (*filebox->curr_dir) * (new_last + 1));
+
+    else filebox->curr_dir = malloc (sizeof (*filebox->curr_dir) * (new_last + 1));
 
     if (new_last == 1) {
 
-        if (curr[0] == '/') result[0] = '/';
-        else result[0] = '.';
+        if (curr[0] == '/') filebox->curr_dir[0] = '/';
 
-    } else for (int i=0; i<new_last; i++) result[i] = curr[i];
+        else filebox->curr_dir[0] = '.';
 
-    result [new_last] = 0;
+    } else for (int i=0; i<new_last; i++) filebox->curr_dir[i] = curr[i];
 
-    char *oldnew = *new;
+    filebox->curr_dir [new_last] = 0;
 
-    *new = result;
+    if (curr) free (curr);
 
-    if (oldnew != NULL) free (oldnew);
-
+    return;
 }
 
 bool MDGUI__compare (char *string1, char *string2) {
@@ -211,6 +230,11 @@ bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 void MDGUIFB__draw (MDGUI__file_box_t *filebox) {
 
     MDGUILB__draw (&filebox->listbox, -1);
+}
+
+void MDGUIFB__redraw (MDGUI__file_box_t *filebox) {
+
+    MDGUILB__redraw (&filebox->listbox, -1);
 }
 
 void MDGUIFB__deinit (MDGUI__file_box_t *filebox) {
