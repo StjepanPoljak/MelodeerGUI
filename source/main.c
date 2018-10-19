@@ -27,7 +27,7 @@ typedef enum MDGUI__play_state MDGUI__play_state;
 
 MD__filetype    MD__get_extension       (const char *filename);
 
-void            MD__handle_metadata     (MD__metadata_t metadata);
+void            MD__handle_metadata     (MD__metadata_t metadata, void *data);
 unsigned int    MD__get_seconds         (volatile MD__buffer_chunk_t *curr_chunk,
                                          unsigned int sample_rate,
                                          unsigned int channels,
@@ -193,7 +193,7 @@ void MDGUI__started_playing () {
     return;
 }
 
-void MDGUI__handle_error (char *error) {
+void MDGUI__handle_error (char *error, void *data) {
 
     MDGUI__log (error, tinfo);
     // current_play_state = MDGUI__NOT_PLAYING;
@@ -235,8 +235,8 @@ void *MDGUI__play (void *data) {
 
         curr_playing = &current_file;
 
-        MD__play (&current_file, decoder, MD__handle_metadata, MDGUI__started_playing,
-                  MDGUI__handle_error, NULL, MDGUI__play_complete);
+        MD__play_raw (&current_file, decoder, MD__handle_metadata, MDGUI__started_playing,
+                      MDGUI__handle_error, NULL, MDGUI__play_complete);
 
     } else {
 
@@ -592,6 +592,8 @@ bool key_pressed (char key[3]) {
             break;
 
         case MDGUI__PLAYLIST:
+
+            if (current_play_state == MDGUI__WAITING_TO_STOP || current_play_state == MDGUI__INITIALIZING) break;
 
             if (current_play_state == MDGUI__PLAYING || current_play_state == MDGUI__PAUSE) {
 
@@ -1010,7 +1012,7 @@ void MDGUI__draw_meta_box_wrap () {
     refresh ();
 }
 
-void MD__handle_metadata (MD__metadata_t metadata) {
+void MD__handle_metadata (MD__metadata_t metadata, void *data) {
 
     curr_metadata = metadata;
     curr_metadata_loaded = true;
