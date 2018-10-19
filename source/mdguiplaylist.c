@@ -56,6 +56,17 @@ void MDGUIPB__update (MDGUI__playlist_box_t *playlistbox) {
     return;
 }
 
+char *MDGUIPB__get_curr_filename (MDGUI__playlist_box_t *playlistbox) {
+
+    return playlistbox->filenames.cnum <= playlistbox->num_playing
+
+        || playlistbox->num_playing < 0
+           
+         ? NULL
+
+         : playlistbox->filenames.carray[playlistbox->num_playing];
+}
+
 void MDGUIPB__draw (MDGUI__playlist_box_t *playlistbox) {
 
     MDGUIPB__update (playlistbox);

@@ -35,9 +35,9 @@ bool MDGUIFB__return (MDGUI__file_box_t *filebox) {
 
         int selected_size = MDGUI__get_string_size (&(selected[1]));
 
-        if ((selected_size == 1 && selected[2] == '.') || selected_size == 0) return false;
+        if ((selected_size == 1 && selected[1] == '.') || selected_size == 0) return false;
 
-        else if (selected_size == 2 && selected[2] == '.' && selected[3] == '.') {
+        else if (selected_size == 2 && selected[1] == '.' && selected[2] == '.') {
 
             MDGUIFB__get_parent_dir (filebox);
 

@@ -11,6 +11,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]);
 void *terminal_change (void *data);
 void MDGUI__draw_logo (MDGUI__manager_t *mdgui);
 void MDGUI__start_playing (MDGUI__manager_t *mdgui);
+bool MDGUI__stop_all_playing (MDGUI__manager_t *mdgui);
 
 int MDGUI__get_box_width (MDGUI__manager_t *mdgui) {
 
@@ -219,6 +220,94 @@ void MDGUI__draw (MDGUI__manager_t *mdgui) {
     MDGUIFB__draw (&mdgui->filebox);
     MDGUIPB__draw (&mdgui->playlistbox);
     MDGUIMB__draw (&mdgui->metabox);
+
+    return;
+}
+
+void MD__handle_metadata (MD__metadata_t metadata, void *user_data) {
+
+    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
+
+    MDGUIMB__load (&mdgui->metabox, metadata);
+
+    return;
+}
+
+void MDGUI__play_complete (void *user_data) {
+
+    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
+
+    MDGUI__mutex_lock (mdgui);
+
+    if (mdgui->stop_all_signal) {
+
+        mdgui->stop_all_signal = false;
+
+        mdgui->current_play_state = MDGUI__NOT_PLAYING;
+
+        MDGUIMB__unload (&mdgui->metabox);
+
+        MDGUI__mutex_unlock (mdgui);
+
+        return;
+    }
+
+    if (mdgui->current_play_state == MDGUI__PROGRAM_EXIT) {
+
+        mdgui->current_play_state = MDGUI__READY_TO_EXIT;
+
+        MDGUI__mutex_unlock (mdgui);
+
+        return;
+    }
+
+    MDGUI__log ("Done playing!", mdgui->tinfo);
+
+    mdgui->current_play_state = MDGUI__NOT_PLAYING;
+
+    MDGUIMB__unload (&mdgui->metabox);
+
+    if (mdgui->playlistbox.num_playing < mdgui->playlistbox.filenames.cnum - 1) {
+
+        mdgui->playlistbox.num_playing++;
+
+        MDGUI__mutex_unlock (mdgui);
+
+        MDGUI__start_playing (user_data);
+    }
+
+    else mdgui->playlistbox.num_playing = -1;
+
+    MDGUI__mutex_unlock (mdgui);
+
+    return;
+}
+
+void MDGUI__handle_error (char *error, void *user_data) {
+
+    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
+
+    MDGUI__log (error, mdgui->tinfo);
+    // current_play_state = MDGUI__NOT_PLAYING;
+
+    return;
+}
+
+void MDGUI__started_playing (void *user_data) {
+
+    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
+
+    mdgui->current_play_state = MDGUI__PLAYING;
+
+    // redraw_playlist_box ();
+
+    char buff[PATH_MAX + 10];
+
+    snprintf (buff, PATH_MAX + 10, "Playing: %s", MDGUIPB__get_curr_filename (&mdgui->playlistbox));
+
+    MDGUI__log(buff, mdgui->tinfo);
+
+    return;
 }
 
 void *MDGUI__play (void *data) {
@@ -227,38 +316,24 @@ void *MDGUI__play (void *data) {
 
     MD__file_t current_file;
 
-    void *(* decoder)(void *) = NULL;
+    char *filename = MDGUIPB__get_curr_filename (&mdgui->playlistbox);
 
-    current_file.MD__buffer_transform = NULL;
+    if (!filename) return NULL;
 
-    MD__filetype type = MD__get_filetype ((char *)data);
-
-    switch (type) {
-
-    case MD__FLAC:
-        decoder = MDFLAC__start_decoding;
-        break;
-
-    case MD__WAV:
-        decoder = MDWAV__parse;
-        break;
-
-    case MD__MP3:
-        decoder = MDMPG123__decoder;
-        break;
-
-    default:
-        MDGUI__log ("(!) Unknown file type!",mdgui->tinfo);
-        mdgui->current_play_state = MDGUI__NOT_PLAYING;
-        return NULL;
-    }
-
-    if (MD__initialize (&current_file, (char *)data)) {
+    if (MD__initialize_with_user_data (&current_file, filename, data)) {
 
         mdgui->curr_playing = &current_file;
 
-        // MD__play (&current_file, decoder, MD__handle_metadata, MDGUI__started_playing,
-        //           MDGUI__handle_error, NULL, MDGUI__play_complete);
+        if (!MD__play_raw_with_decoder (&current_file, MD__handle_metadata, MDGUI__started_playing,
+                                        MDGUI__handle_error, NULL, MDGUI__play_complete)) {
+            
+            MDGUI__log ("(!) Unknown file type!",mdgui->tinfo);
+
+            mdgui->current_play_state = MDGUI__NOT_PLAYING;
+            mdgui->curr_playing = NULL;
+
+            return NULL;
+        }
 
     } else {
 
@@ -376,6 +451,8 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 MDGUI__str_array_copy_raw (&mdgui->filebox.listbox.str_array, &mdgui->playlistbox.filenames, mdgui->filebox.listbox.num_selected, mdgui->filebox.listbox.str_array.cnum - 1, &pr_info, MDGUI__str_transform_prepend_dir);
 
+                mdgui->playlistbox.num_playing = 0;
+
                 MDGUIPB__redraw (&mdgui->playlistbox);
 
                 MDGUI__start_playing (mdgui);
@@ -384,21 +461,16 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
             break;
 
         case MDGUI__PLAYLIST:
-            //
-            // mdgui->playlistbox.num_playing = mdgui->playlistbox.listbox.num_selected;
-            //
-            // if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
-            //
-            //     mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
-            //
-            //     MD__stop (mdgui->curr_playing);
-            //
-            //     MDGUI__log ("Waiting to stop.", mdgui->tinfo);
-            //
-            // } else {
+            
+            if (mdgui->current_play_state == MDGUI__WAITING_TO_STOP || mdgui->current_play_state == MDGUI__INITIALIZING) return true;
+
+            mdgui->playlistbox.num_playing = mdgui->playlistbox.listbox.num_selected;
+
+            MDGUIPB__redraw (&mdgui->playlistbox);
+
+            if (MDGUI__stop_all_playing (mdgui))
 
                 MDGUI__start_playing (mdgui);
-            // }
 
             break;
 
@@ -609,18 +681,27 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
     else if ((key[0] == 's' || key[0] == 'S') && key[1] == 0 && key[2] == 0) {
 
         // STOP
+        bool stop = MDGUI__stop_all_playing (mdgui);
 
-        if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
-
-            mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
-
-            mdgui->stop_all_signal = true;
-
-            MD__stop (mdgui->curr_playing);
-
-            MDGUI__log ("Waiting to stop.", mdgui->tinfo);
-        }
     }
+    return true;
+}
+
+bool MDGUI__stop_all_playing (MDGUI__manager_t *mdgui) {
+
+    if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
+
+        mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
+
+        mdgui->stop_all_signal = true;
+
+        MD__stop (mdgui->curr_playing);
+
+        MDGUI__log ("Waiting to stop.", mdgui->tinfo);
+
+        return false;
+    }
+
     return true;
 }
 
@@ -694,20 +775,13 @@ void *terminal_change (void *data) {
 
 void MDGUI__start_playing (MDGUI__manager_t *mdgui) {
 
-    mdgui->playlistbox.num_playing = mdgui->playlistbox.listbox.num_selected;
+    if (mdgui->playlistbox.num_playing < 0
+       || mdgui->playlistbox.num_playing >= mdgui->playlistbox.filenames.cnum) {
 
-    if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
-
-        mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
-
-        MD__stop (mdgui->curr_playing);
-
-        MDGUI__log ("Waiting to stop.", mdgui->tinfo);
-    }
-    else if (mdgui->playlistbox.num_playing < 0
-     || mdgui->playlistbox.num_playing >= mdgui->playlistbox.filenames.cnum)
+        mdgui->playlistbox.num_playing = -1;
 
         return;
+    }
 
     mdgui->current_play_state = MDGUI__INITIALIZING;
 

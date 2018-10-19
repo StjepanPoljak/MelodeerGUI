@@ -2,6 +2,8 @@
 
 #include "mdguistrarr.h"
 
+void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox);
+
 MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int width) {
 
     MDGUI__meta_box_t new_box;
@@ -16,6 +18,16 @@ MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int wid
 void MDGUIMB__draw (MDGUI__meta_box_t *metabox) {
 
     MDGUI__draw_box (&metabox->box);
+    MDGUIMB__draw_contents (metabox);
+}
+
+void MDGUIMB__redraw (MDGUI__meta_box_t *metabox) {
+
+    MDGUI__draw_box_opt (&metabox->box, true);
+    MDGUIMB__draw_contents (metabox);
+}
+
+void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox) {
 
     if (!metabox->metadata_present) return;
 
@@ -66,6 +78,21 @@ void MDGUIMB__draw (MDGUI__meta_box_t *metabox) {
     free (sample_rate_string);
     free (data_size_string);
 
+}
+
+void MDGUIMB__load (MDGUI__meta_box_t *metabox, MD__metadata_t metadata) {
+
+    metabox->metadata_present = true;
+    metabox->metadata = metadata;
+
+    MDGUIMB__redraw (metabox);
+}
+
+void MDGUIMB__unload (MDGUI__meta_box_t *metabox) {
+    
+    metabox->metadata_present = false;
+
+    MDGUIMB__redraw (metabox);
 }
 
 void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {
