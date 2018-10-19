@@ -104,23 +104,35 @@ void MDGUI__clear_screen () {
 
 void MDGUI__log (const char *log, MDGUI__terminal tinfo) {
 
-    move (tinfo.lines - 1, 0);
-    clrtoeol ();
+    FILE *f = fopen ("mdgui.log", "a");
 
-    int i = 0;
+    if (f == NULL) return;
 
-    while (true) {
+    time_t t = time (NULL);
+    struct tm tm = *localtime (&t);
 
-        if (i >= tinfo.cols) break;
+    fprintf (f, "[%02d.%02d.%04d. %02d:%02d:%02d] : %s\n", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900,
+                                                           tm.tm_hour, tm.tm_min, tm.tm_sec, log);
 
-        if (log[i] == 0) break;
+    fclose (f);
 
-        mvprintw (tinfo.lines - 1, i, "%c", log[i]);
+    // move (tinfo.lines - 1, 0);
+    // clrtoeol ();
 
-        i++;
-    }
+    // int i = 0;
 
-    refresh ();
+    // while (true) {
+
+    //     if (i >= tinfo.cols) break;
+
+    //     if (log[i] == 0) break;
+
+    //     mvprintw (tinfo.lines - 1, i, "%c", log[i]);
+
+    //     i++;
+    // }
+
+    // refresh ();
 }
 
 MDGUI__terminal MDGUI__get_terminal_information () {
@@ -237,9 +249,9 @@ void MDGUI__play_complete (void *user_data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
-    MDGUI__log ("Play complete called.", mdgui->tinfo);
-
     MDGUI__mutex_lock (mdgui);
+
+    MDGUI__log ("Play complete called.", mdgui->tinfo);
 
     if (mdgui->current_play_state == MDGUI__PROGRAM_EXIT) {
 
@@ -278,15 +290,22 @@ void MDGUI__play_complete (void *user_data) {
         return;
     }
 
-    if (mdgui->stop_all_signal) mdgui->stop_all_signal = false;
-
     MDGUIPB__redraw (&mdgui->playlistbox);
 
-    mdgui->current_play_state = MDGUI__NOT_PLAYING;
-    
-    MDGUI__mutex_unlock (mdgui);
+    if (mdgui->stop_all_signal) {
+
+        mdgui->stop_all_signal = false;
+
+        mdgui->current_play_state = MDGUI__NOT_PLAYING;
+
+        MDGUI__mutex_unlock (mdgui);
+
+        return;
+    }
 
     MDGUI__log ("Starting to play again.", mdgui->tinfo);
+
+    MDGUI__mutex_unlock (mdgui);
 
     MDGUI__start_playing (user_data);
 
@@ -297,7 +316,11 @@ void MDGUI__handle_error (char *error, void *user_data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
+    MDGUI__mutex_lock (mdgui);
+
     MDGUI__log (error, mdgui->tinfo);
+
+    MDGUI__mutex_unlock (mdgui);
 
     return;
 }
@@ -306,6 +329,8 @@ void MDGUI__started_playing (void *user_data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
+    MDGUI__mutex_lock (mdgui);
+
     mdgui->current_play_state = MDGUI__PLAYING;
 
     char buff[PATH_MAX + 10];
@@ -313,6 +338,8 @@ void MDGUI__started_playing (void *user_data) {
     snprintf (buff, PATH_MAX + 10, "Playing: %s", MDGUIPB__get_curr_filename (&mdgui->playlistbox));
 
     MDGUI__log (buff, mdgui->tinfo);
+
+    MDGUI__mutex_unlock (mdgui);
 
     return;
 }
@@ -334,6 +361,8 @@ void *MDGUI__play (void *data) {
         MDGUI__log ("No filename.", mdgui->tinfo);
 
         MDGUI__mutex_unlock (mdgui);
+
+        mdgui->current_play_state = MDGUI__NOT_PLAYING;
 
         return NULL;
     }
@@ -376,6 +405,7 @@ void *MDGUI__play (void *data) {
     } else {
 
         MDGUI__log ("(!) Could not open file!", mdgui->tinfo);
+
         mdgui->current_play_state = MDGUI__NOT_PLAYING;
 
         free (filename);
@@ -492,12 +522,15 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
             if (MDGUIFB__return (&mdgui->filebox)) {
 
                 if (mdgui->current_play_state == MDGUI__WAITING_TO_STOP
-                 || mdgui->current_play_state == MDGUI__INITIALIZING) {
+                 || mdgui->current_play_state == MDGUI__INITIALIZING
+                 || mdgui->current_play_state == MDGUI__EVALUATING) {
 
                     MDGUI__mutex_unlock (mdgui);
 
                     break;
                 }
+
+                mdgui->current_play_state = MDGUI__EVALUATING;
 
                 struct MDGUI__prepend_info pr_info;
 
@@ -527,7 +560,8 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             MDGUI__mutex_lock (mdgui);
             if (mdgui->current_play_state == MDGUI__WAITING_TO_STOP
-             || mdgui->current_play_state == MDGUI__INITIALIZING) {
+             || mdgui->current_play_state == MDGUI__INITIALIZING
+             || mdgui->current_play_state == MDGUI__EVALUATING) {
 
                 MDGUI__log ("Can't play right now.", mdgui->tinfo);
 
@@ -535,6 +569,8 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 break;
             }
+
+            mdgui->current_play_state = MDGUI__EVALUATING;
 
             mdgui->playlistbox.num_playing = mdgui->playlistbox.listbox.num_selected;
 
@@ -544,9 +580,10 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             MDGUI__mutex_unlock (mdgui);
 
-            if (MDGUI__stop_all_playing (mdgui))
+            if (MDGUI__stop_all_playing (mdgui)) {
 
                 MDGUI__start_playing (mdgui);
+            }
 
             break;
 
@@ -746,13 +783,18 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         // PAUSE
 
+        MDGUI__mutex_lock (mdgui);
+
         if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
 
             MD__toggle_pause (mdgui->curr_playing);
+
             mdgui->current_play_state = MD__is_paused (mdgui->curr_playing) ? MDGUI__PAUSE : MDGUI__PLAYING;
 
             MDGUI__log (mdgui->current_play_state == MDGUI__PAUSE ? "Playing paused." : "Playing resumed.", mdgui->tinfo);
         }
+
+        MDGUI__mutex_unlock (mdgui);
     }
     else if ((key[0] == 's' || key[0] == 'S') && key[1] == 0 && key[2] == 0) {
 
@@ -783,16 +825,18 @@ bool MDGUI__stop_all_playing (MDGUI__manager_t *mdgui) {
 
         MDGUI__log ("Waiting to stop.", mdgui->tinfo);
 
-        MDGUI__mutex_unlock (mdgui);
-
         MD__stop (mdgui->curr_playing);
+
+        MDGUI__log ("Stop signal sent.", mdgui->tinfo);
+
+        MDGUI__mutex_unlock (mdgui);
 
         return false;
     }
 
-    MDGUI__mutex_unlock (mdgui);
-
     MDGUI__log ("Not necessary to stop.", mdgui->tinfo);
+
+    MDGUI__mutex_unlock (mdgui);
 
     return true;
 }
@@ -874,6 +918,8 @@ void MDGUI__start_playing (MDGUI__manager_t *mdgui) {
 
         mdgui->playlistbox.num_playing = -1;
 
+        mdgui->current_play_state = MDGUI__NOT_PLAYING;
+
         MDGUI__log ("Can't play - out of bounds.", mdgui->tinfo);
 
         MDGUI__mutex_unlock (mdgui);
@@ -904,9 +950,9 @@ void MDGUI__complete (MDGUI__manager_t *mdgui) {
 
         mdgui->current_play_state = MDGUI__PROGRAM_EXIT;
 
-        MDGUI__mutex_unlock (mdgui);
-
         MD__stop (mdgui->curr_playing);
+
+        MDGUI__mutex_unlock (mdgui);
 
         for (;;) {
             MDGUI__mutex_lock (mdgui);
