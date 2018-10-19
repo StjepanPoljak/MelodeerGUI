@@ -239,18 +239,18 @@ void MDGUI__play_complete (void *user_data) {
 
     MDGUI__mutex_lock (mdgui);
 
-    if (mdgui->stop_all_signal) {
+    // if (mdgui->stop_all_signal) {
 
-        mdgui->stop_all_signal = false;
+    //     mdgui->stop_all_signal = false;
 
-        mdgui->current_play_state = MDGUI__NOT_PLAYING;
+    //     mdgui->current_play_state = MDGUI__NOT_PLAYING;
 
-        MDGUIMB__unload (&mdgui->metabox);
+    //     MDGUIMB__unload (&mdgui->metabox);
 
-        MDGUI__mutex_unlock (mdgui);
+    //     MDGUI__mutex_unlock (mdgui);
 
-        return;
-    }
+    //     return;
+    // }
 
     if (mdgui->current_play_state == MDGUI__PROGRAM_EXIT) {
 
@@ -267,18 +267,24 @@ void MDGUI__play_complete (void *user_data) {
 
     MDGUIMB__unload (&mdgui->metabox);
 
-    if (mdgui->playlistbox.num_playing < mdgui->playlistbox.filenames.cnum - 1) {
+    if (mdgui->playlistbox.num_playing < mdgui->playlistbox.filenames.cnum - 1 && !mdgui->stop_all_signal) {
 
         mdgui->playlistbox.num_playing++;
 
         MDGUI__mutex_unlock (mdgui);
-
-        MDGUI__start_playing (user_data);
     }
+    else if (mdgui->playlistbox.num_playing >= mdgui->playlistbox.filenames.cnum)
+    {
+        mdgui->playlistbox.num_playing = -1;
 
-    else mdgui->playlistbox.num_playing = -1;
+        MDGUI__mutex_unlock (mdgui);
 
+        return;
+    }
+    
     MDGUI__mutex_unlock (mdgui);
+
+    MDGUI__start_playing (user_data);
 
     return;
 }
@@ -455,7 +461,11 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 MDGUIPB__redraw (&mdgui->playlistbox);
 
+                if (MDGUI__stop_all_playing (mdgui))
+
                 MDGUI__start_playing (mdgui);
+
+                break;
             }
 
             break;
