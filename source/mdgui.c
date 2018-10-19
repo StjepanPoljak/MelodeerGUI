@@ -5,13 +5,15 @@
 #include <melodeer/mdmpg123.h>
 #include <melodeer/mdutils.h>
 
-void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI__manager_t *mdgui, char [3]), void (on_completion)(MDGUI__manager_t *mdgui));
-void MDGUI__complete (MDGUI__manager_t *mdgui);
-bool key_pressed (MDGUI__manager_t *mdgui, char key[3]);
-void *terminal_change (void *data);
-void MDGUI__draw_logo (MDGUI__manager_t *mdgui);
-void MDGUI__start_playing (MDGUI__manager_t *mdgui);
-bool MDGUI__stop_all_playing (MDGUI__manager_t *mdgui);
+void        MDGUI__wait_for_keypress        (MDGUI__manager_t *mdgui,
+                                             bool (key_pressed) (MDGUI__manager_t *mdgui, char [3]),
+                                             void (on_completion) (MDGUI__manager_t *mdgui));
+bool        key_pressed                     (MDGUI__manager_t *mdgui, char key[3]);
+void        *terminal_change                (void *data);
+void        MDGUI__draw_logo                (MDGUI__manager_t *mdgui);
+void        MDGUI__start_playing            (MDGUI__manager_t *mdgui);
+bool        MDGUI__stop_all_playing         (MDGUI__manager_t *mdgui);
+void        MDGUI__complete                 (MDGUI__manager_t *mdgui);
 
 int MDGUI__get_box_width (MDGUI__manager_t *mdgui) {
 
@@ -87,6 +89,51 @@ bool MDGUI__start (MDGUI__manager_t *mdgui) {
     return true;
 }
 
+void MDGUI__draw_logo (MDGUI__manager_t *mdgui) {
+
+    char logo [76];
+    int line = 0;
+    int col = 0;
+
+    MD__get_logo (logo);
+
+    if (mdgui->potential_component == MDGUI__LOGO) attron (A_BOLD);
+
+    bool reversing = false;
+    int lastrev = -1;
+
+    for (int i=0; i<75; i++) {
+
+        if (logo[i] == '\n') {
+
+            if (line == 4 && mdgui->potential_component == MDGUI__LOGO) attroff (A_BOLD);
+            if (line == 5 && mdgui->potential_component == MDGUI__LOGO) attron (A_BOLD);
+            line++;
+
+            col = 0;
+            continue;
+        }
+
+        if (logo[i] == '~' && mdgui->selected_component == MDGUI__LOGO && !reversing) {
+            reversing = true;
+            lastrev = i;
+            attron (A_REVERSE);
+        }
+
+        mvprintw (1 + line, mdgui->metabox.box.x + (mdgui->metabox.box.width - 12) / 2 + col++, "%c", logo[i]);
+
+        if (logo[i] == '~' && i != lastrev && mdgui->selected_component == MDGUI__LOGO && reversing) {
+            reversing = false;
+            attroff (A_REVERSE);
+        }
+
+    }
+
+    if (mdgui->potential_component == MDGUI__LOGO) attroff (A_BOLD);
+
+    refresh ();
+}
+
 void MDGUI__mutex_lock (MDGUI__manager_t *mdgui) {
 
     pthread_mutex_lock (&mdgui->mutex);
@@ -104,35 +151,38 @@ void MDGUI__clear_screen () {
 
 void MDGUI__log (const char *log, MDGUI__terminal tinfo) {
 
-    FILE *f = fopen ("mdgui.log", "a");
+    move (tinfo.lines - 1, 0);
+    clrtoeol ();
 
-    if (f == NULL) return;
+    int i = 0;
 
-    time_t t = time (NULL);
-    struct tm tm = *localtime (&t);
+    while (true) {
 
-    fprintf (f, "[%02d.%02d.%04d. %02d:%02d:%02d] : %s\n", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900,
-                                                           tm.tm_hour, tm.tm_min, tm.tm_sec, log);
+        if (i >= tinfo.cols) break;
 
-    fclose (f);
+        if (log[i] == 0) break;
 
-    // move (tinfo.lines - 1, 0);
-    // clrtoeol ();
+        mvprintw (tinfo.lines - 1, i, "%c", log[i]);
 
-    // int i = 0;
+        i++;
+    }
 
-    // while (true) {
+    refresh ();
 
-    //     if (i >= tinfo.cols) break;
+    #ifdef MDGUI_DEBUG
 
-    //     if (log[i] == 0) break;
+        FILE *f = fopen ("mdgui.log", "a");
 
-    //     mvprintw (tinfo.lines - 1, i, "%c", log[i]);
+        if (f == NULL) return;
 
-    //     i++;
-    // }
+        time_t t = time (NULL);
+        struct tm tm = *localtime (&t);
 
-    // refresh ();
+        fprintf (f, "[%02d.%02d.%04d. %02d:%02d:%02d] : %s\n", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900,
+                                                               tm.tm_hour, tm.tm_min, tm.tm_sec, log);
+        fclose (f);
+
+    #endif
 }
 
 MDGUI__terminal MDGUI__get_terminal_information () {
@@ -389,7 +439,7 @@ void *MDGUI__play (void *data) {
 
         if (!MD__play_raw_with_decoder (&current_file, MD__handle_metadata, MDGUI__started_playing,
                                         MDGUI__handle_error, NULL, MDGUI__play_complete)) {
-            
+
             MDGUI__mutex_lock (mdgui);
 
             MDGUI__log ("(!) Unknown file type!",mdgui->tinfo);
@@ -424,6 +474,35 @@ void *MDGUI__play (void *data) {
     MDGUI__mutex_unlock (mdgui);
 
     return NULL;
+}
+
+bool filebox_or_playlist_return (MDGUI__manager_t *mdgui) {
+
+    MDGUI__mutex_lock (mdgui);
+
+    if (!(mdgui->current_play_state == MDGUI__PAUSE
+       || mdgui->current_play_state == MDGUI__PLAYING
+       || mdgui->current_play_state == MDGUI__NOT_PLAYING)) {
+
+        MDGUI__mutex_unlock (mdgui);
+
+        return false;
+    }
+
+    if (mdgui->current_play_state != MDGUI__NOT_PLAYING) {
+
+        mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
+
+        mdgui->stop_all_signal = true;
+        MDGUI__log ("Waiting to stop.", mdgui->tinfo);
+
+        MD__stop (mdgui->curr_playing);
+
+        MDGUI__log ("Stop signal sent.", mdgui->tinfo);
+    }
+    else MDGUI__log ("Not necessary to stop.", mdgui->tinfo);
+
+    return true;
 }
 
 bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
@@ -519,30 +598,13 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         case MDGUI__FILEBOX:
 
-            MDGUI__mutex_lock (mdgui);
-
             if (MDGUIFB__return (&mdgui->filebox)) {
 
-                if (!(mdgui->current_play_state == MDGUI__PAUSE
-                 || mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__NOT_PLAYING)) {
+                if (!filebox_or_playlist_return(mdgui)) {
 
                     MDGUI__mutex_unlock (mdgui);
-
                     break;
                 }
-
-		if (mdgui->current_play_state != MDGUI__NOT_PLAYING) {
-
-                    mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
-
-                    mdgui->stop_all_signal = true;
-                    MDGUI__log ("Waiting to stop.", mdgui->tinfo);
-
-                    MD__stop (mdgui->curr_playing);
-
-                    MDGUI__log ("Stop signal sent.", mdgui->tinfo);
-                }
-                else MDGUI__log ("Not necessary to stop.", mdgui->tinfo);
 
                 struct MDGUI__prepend_info pr_info;
 
@@ -572,30 +634,11 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         case MDGUI__PLAYLIST:
 
-            MDGUI__mutex_lock (mdgui);
-
-            if (!(mdgui->current_play_state == MDGUI__PAUSE
-               || mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__NOT_PLAYING)) {
-
-                MDGUI__log ("Can't play right now.", mdgui->tinfo);
+            if (!filebox_or_playlist_return(mdgui)) {
 
                 MDGUI__mutex_unlock (mdgui);
-
                 break;
             }
-
-            if (mdgui->current_play_state != MDGUI__NOT_PLAYING) {
-
-                mdgui->current_play_state = MDGUI__WAITING_TO_STOP;
-
-                mdgui->stop_all_signal = true;
-                MDGUI__log ("Waiting to stop.", mdgui->tinfo);
-
-                MD__stop (mdgui->curr_playing);
-
-                MDGUI__log ("Stop signal sent.", mdgui->tinfo);
-            }
-            else MDGUI__log ("Not necessary to stop.", mdgui->tinfo);
 
             mdgui->playlistbox.num_playing = mdgui->playlistbox.listbox.num_selected;
 
@@ -877,7 +920,7 @@ void MDGUI__update_size (MDGUI__manager_t *mdgui) {
     mdgui->filebox.listbox.box.width = box_width;
 
     mdgui->metabox.box.x = MDGUI__get_box_x (mdgui, 1);
-    mdgui->metabox.box.height = box_height - mdgui->meta_top;
+    mdgui->metabox.box.height = box_height - mdgui->meta_bottom - mdgui->meta_top;
     mdgui->metabox.box.width = box_width;
 
     mdgui->playlistbox.listbox.box.x = MDGUI__get_box_x (mdgui, 2);
@@ -1007,49 +1050,4 @@ void MDGUI__deinit (MDGUI__manager_t *mdgui) {
     MDGUIMB__deinit (&mdgui->metabox);
     MDGUIPB__deinit (&mdgui->playlistbox);
     MDGUIFB__deinit (&mdgui->filebox);
-}
-
-void MDGUI__draw_logo (MDGUI__manager_t *mdgui) {
-
-    char logo [76];
-    int line = 0;
-    int col = 0;
-
-    MD__get_logo (logo);
-
-    if (mdgui->potential_component == MDGUI__LOGO) attron (A_BOLD);
-
-    bool reversing = false;
-    int lastrev = -1;
-
-    for (int i=0; i<75; i++) {
-
-        if (logo[i] == '\n') {
-
-            if (line == 4 && mdgui->potential_component == MDGUI__LOGO) attroff (A_BOLD);
-            if (line == 5 && mdgui->potential_component == MDGUI__LOGO) attron (A_BOLD);
-            line++;
-
-            col = 0;
-            continue;
-        }
-
-        if (logo[i] == '~' && mdgui->selected_component == MDGUI__LOGO && !reversing) {
-            reversing = true;
-            lastrev = i;
-            attron (A_REVERSE);
-        }
-
-        mvprintw (1 + line, mdgui->metabox.box.x + (mdgui->metabox.box.width - 12) / 2 + col++, "%c", logo[i]);
-
-        if (logo[i] == '~' && i != lastrev && mdgui->selected_component == MDGUI__LOGO && reversing) {
-            reversing = false;
-            attroff (A_REVERSE);
-        }
-
-    }
-
-    if (mdgui->potential_component == MDGUI__LOGO) attroff (A_BOLD);
-
-    refresh ();
 }
