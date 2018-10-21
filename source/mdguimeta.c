@@ -1,14 +1,23 @@
 #include "mdguimeta.h"
+#include <unistd.h>
 
 #include "mdguistrarr.h"
 
 void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox);
+void MDGUIMB__draw_progress_bar (MDGUI__meta_box_t *metabox);
 
 MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int width) {
 
     MDGUI__meta_box_t new_box;
 
     new_box.metadata_present = false;
+    new_box.end_signal = false;
+    new_box.pause = false;
+    new_box.curr_sec = 0;
+    new_box.total_seconds = 0;
+    new_box.prev_state = -1;
+
+    pthread_mutex_init (&new_box.mutex, NULL);
 
     new_box.box = MDGUI__box_create (name, x, y, height, width);
 
@@ -19,6 +28,7 @@ void MDGUIMB__draw (MDGUI__meta_box_t *metabox) {
 
     MDGUI__draw_box (&metabox->box);
     MDGUIMB__draw_contents (metabox);
+    MDGUIMB__draw_progress_bar (metabox);
 }
 
 void MDGUIMB__redraw (MDGUI__meta_box_t *metabox) {
@@ -39,63 +49,167 @@ void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox) {
     int term_pos_x = metabox->box.x;
     int term_pos_y = metabox->box.y;
     int width = metabox->box.width;
-
-    unsigned int total_seconds  = total_samples / sample_rate;
-    unsigned int hours          = total_seconds / 3600;
-    unsigned int minutes        = (total_seconds / 60) - (hours * 60);
-    unsigned int seconds        = total_seconds - 60 * minutes;
-
-    unsigned int data_size      = total_samples * (bps / 8) * channels;
-    float kb                    = data_size / 1024;
-    float mb                    = kb / 1024;
-    bool data_test              = mb >= 1.0;
-
-    unsigned int sample_rate_string_size = snprintf(NULL, 0, "%d Hz %d bps", sample_rate, bps) + 1;
-    char *sample_rate_string = malloc (sizeof(*sample_rate_string) * sample_rate_string_size);
-    snprintf (sample_rate_string, sample_rate_string_size, "%d Hz %d bps", sample_rate, bps);
+    //
+    // // will move this later to event, as having this in draw method makes no sense
+    //
+    // unsigned int total_seconds  = total_samples / sample_rate;
+    // unsigned int hours          = total_seconds / 3600;
+    // unsigned int minutes        = (total_seconds / 60) - (hours * 60);
+    // unsigned int seconds        = total_seconds - 60 * minutes;
+    //
+    // unsigned int data_size      = total_samples * (bps / 8) * channels;
+    // float kb                     = data_size / 1024;
+    // float mb                     = kb / 1024;
+    // bool data_test              = mb >= 1.0;
 
     char *channels_string = (channels == 2) ? "Stereo" : (channels == 1 ? "Mono" : "Unknown");
-    unsigned int channels_string_size = MDGUI__get_string_size (channels_string);
 
-    unsigned int data_size_string_size = snprintf(NULL, 0, "%.2f %s", data_test ? mb : kb, data_test ? "Mb" : "Kb") + 1;
-    char *data_size_string = malloc (sizeof(*data_size_string) * data_size_string_size);
-    snprintf (data_size_string, data_size_string_size, "%.2f %s", data_test ? mb : kb, data_test ? "Mb" : "Kb");
+    char *sample_rate_string = NULL;
 
-    mvprintw (term_pos_y + 1, term_pos_x + (width - (sample_rate_string_size - 1)) / 2, "%s", sample_rate_string);
+    unsigned int sample_rate_string_size = snprintf (NULL, 0, "%dHz %dbps %s", sample_rate, bps, channels_string) + 1;
 
-    mvprintw (term_pos_y + 3, term_pos_x + (width - channels_string_size + 1) / 2, "%s", channels_string);
+    if (sample_rate_string_size < metabox->box.width - 2) {
 
-    move (term_pos_y + 5, term_pos_x + 1);
+        sample_rate_string = malloc (sizeof(*sample_rate_string) * sample_rate_string_size);
+        snprintf (sample_rate_string, sample_rate_string_size, "%dHz %dbps %s", sample_rate, bps, channels_string);
+    }
+    else {
 
-    if (hours > 0)      printw("%dh ", hours);
-    if (minutes > 0)    printw("%dm ", minutes);
-    if (seconds > 0)    printw("%ds", seconds);
+        sample_rate_string_size = snprintf (NULL, 0, "%dHz %dbps", sample_rate, bps, channels_string) + 1;
 
-    mvprintw (term_pos_y + 5, term_pos_x + width - data_size_string_size - 1, "%s" ,data_size_string);
+        if (sample_rate_string_size < metabox->box.width - 2) {
+
+            sample_rate_string = malloc (sizeof(*sample_rate_string) * sample_rate_string_size);
+            snprintf (sample_rate_string, sample_rate_string_size, "%dHz %dbps", sample_rate, bps, channels_string);
+        }
+    }
+
+    if (sample_rate_string) mvprintw (term_pos_y + metabox->box.height - 3, term_pos_x + (width - (sample_rate_string_size - 1)) / 2, "%s", sample_rate_string);
 
     refresh ();
 
     free (sample_rate_string);
-    free (data_size_string);
+}
 
+void *MDGUIMB__countdown (void *data) {
+
+    MDGUI__meta_box_t *metabox = (MDGUI__meta_box_t *)data;
+
+    while (true) {
+
+        usleep (50000);
+
+        pthread_mutex_lock (&metabox->mutex);
+
+        if (metabox->pause) {
+
+            pthread_mutex_unlock (&metabox->mutex);
+            continue;
+        }
+
+        metabox->curr_sec += 0.05;
+
+        MDGUIMB__draw_progress_bar (metabox);
+
+        if (metabox->end_signal) {
+
+            metabox->end_signal = false;
+            metabox->curr_sec = 0;
+            pthread_mutex_unlock (&metabox->mutex);
+
+            break;
+        }
+
+        pthread_mutex_unlock (&metabox->mutex);
+    }
+}
+
+void MDGUIMB__start_countdown (MDGUI__meta_box_t *metabox) {
+
+    metabox->curr_sec = 0;
+
+    if (pthread_create (&metabox->clock_thread, NULL, MDGUIMB__countdown, metabox)){
+
+        return;
+    }
+}
+
+void MDGUIMB__end_countdown (MDGUI__meta_box_t *metabox) {
+
+}
+
+
+void MDGUIMB__draw_progress_bar (MDGUI__meta_box_t *metabox) {
+
+    if (metabox->metadata.total_samples == 0 || metabox->metadata.sample_rate == 0) return;
+
+    float absolute_progress = metabox->curr_sec / metabox->total_seconds;
+
+    int boxes = absolute_progress * (metabox->box.width + 2);
+
+    if (boxes == metabox->prev_state && metabox->metadata_present) return;
+
+    // NOTE: add previous state to redraw only on need
+
+    for (int i=0; i<metabox->box.width - 2; i++) {
+
+        char curr = i < boxes || (i == 0 && metabox->metadata_present) ? '#' : '-';
+
+        mvprintw (metabox->box.height + metabox->box.y + 1, metabox->box.x + i + 1, "%c", curr);
+    }
+
+    metabox->prev_state = boxes;
+
+    refresh ();
 }
 
 void MDGUIMB__load (MDGUI__meta_box_t *metabox, MD__metadata_t metadata) {
 
     metabox->metadata_present = true;
     metabox->metadata = metadata;
+    metabox->curr_sec = 0;
+    metabox->pause = false;
+    metabox->end_signal = false;
+    metabox->prev_state = -1;
+
+    metabox->total_seconds = (float)metabox->metadata.total_samples / (float)metabox->metadata.sample_rate;
 
     MDGUIMB__redraw (metabox);
 }
 
+
+void MDGUIMB__unset_pause (MDGUI__meta_box_t *metabox) {
+
+    pthread_mutex_lock (&metabox->mutex);
+    metabox->pause = false;
+    pthread_mutex_unlock (&metabox->mutex);
+}
+
+
+void MDGUIMB__set_pause (MDGUI__meta_box_t *metabox) {
+
+    pthread_mutex_lock (&metabox->mutex);
+    metabox->pause = true;
+    pthread_mutex_unlock (&metabox->mutex);
+}
+
+
 void MDGUIMB__unload (MDGUI__meta_box_t *metabox) {
-    
+
+    pthread_mutex_lock (&metabox->mutex);
+    metabox->end_signal = true;
+    pthread_mutex_unlock (&metabox->mutex);
+
     metabox->metadata_present = false;
 
     MDGUIMB__redraw (metabox);
+
+    pthread_join (metabox->clock_thread, NULL);
 }
 
 void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {
+
+    pthread_mutex_destroy (&metabox->mutex);
 
     MDGUI__box_deinit (&metabox->box);
 }

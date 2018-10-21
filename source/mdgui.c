@@ -54,7 +54,7 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
 
     mdgui->filebox = MDGUIFB__create ("files", MDGUI__get_box_x (mdgui, 0), mdgui->top, box_height, box_width);
 
-    mdgui->metabox = MDGUIMB__create ("metadata", MDGUI__get_box_x (mdgui, 1), mdgui->top + mdgui->meta_top, box_height - mdgui->meta_bottom - mdgui->meta_top, box_width);
+    mdgui->metabox = MDGUIMB__create ("metadata", MDGUI__get_box_x (mdgui, 1) + 1, mdgui->top + mdgui->meta_top, box_height - mdgui->meta_bottom - mdgui->meta_top, box_width - 2);
 
     mdgui->playlistbox = MDGUIPB__create ("playlist", MDGUI__get_box_x (mdgui, 2), mdgui->top, box_height, box_width);
 
@@ -126,7 +126,6 @@ void MDGUI__draw_logo (MDGUI__manager_t *mdgui) {
             reversing = false;
             attroff (A_REVERSE);
         }
-
     }
 
     if (mdgui->potential_component == MDGUI__LOGO) attroff (A_BOLD);
@@ -253,13 +252,13 @@ void MDGUI__wait_for_keypress (MDGUI__manager_t *mdgui, bool (key_pressed)(MDGUI
         FD_ZERO (&input_set);
         FD_SET (STDIN_FILENO, &input_set);
 
-        int readn = select(1, &input_set, NULL, NULL, NULL);
+        int readn = select (1, &input_set, NULL, NULL, NULL);
 
-        if (FD_ISSET (STDIN_FILENO, &input_set))
-        {
+        if (FD_ISSET (STDIN_FILENO, &input_set)) {
+
             int buffread = read(STDIN_FILENO, buff, 3);
 
-            if (!key_pressed(mdgui, buff)) break;
+            if (!key_pressed (mdgui, buff)) break;
         }
     }
 
@@ -301,7 +300,9 @@ void MDGUI__play_complete (void *user_data) {
 
     MDGUI__mutex_lock (mdgui);
 
-    MDGUI__log ("Play complete called.", mdgui->tinfo);
+    MDGUI__log ("Done playing!", mdgui->tinfo);
+
+    MDGUIMB__unload (&mdgui->metabox);
 
     if (mdgui->current_play_state == MDGUI__PROGRAM_EXIT) {
 
@@ -311,10 +312,6 @@ void MDGUI__play_complete (void *user_data) {
 
         return;
     }
-
-    MDGUI__log ("Done playing!", mdgui->tinfo);
-
-    MDGUIMB__unload (&mdgui->metabox);
 
     if ((mdgui->playlistbox.num_playing < mdgui->playlistbox.filenames.cnum) && !mdgui->stop_all_signal) {
 
@@ -384,6 +381,8 @@ void MDGUI__started_playing (void *user_data) {
     MDGUI__mutex_lock (mdgui);
 
     mdgui->current_play_state = MDGUI__PLAYING;
+
+    MDGUIMB__start_countdown (&mdgui->metabox);
 
     char buff[PATH_MAX + 10];
 
@@ -712,7 +711,6 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
             break;
         }
-
     }
     else if (key[0] == 27 && key[1] == 91 && key[2] == 65) {
 
@@ -875,9 +873,13 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
                                       ? MDGUI__PAUSE
                                       : MDGUI__PLAYING;
 
+            if (mdgui->current_play_state == MDGUI__PAUSE) MDGUIMB__set_pause (&mdgui->metabox);
+            else MDGUIMB__unset_pause (&mdgui->metabox);
+
             MDGUI__log (mdgui->current_play_state == MDGUI__PAUSE
                         ? "Playing paused."
                         : "Playing resumed.", mdgui->tinfo);
+
         }
 
         MDGUI__mutex_unlock (mdgui);
@@ -936,9 +938,9 @@ void MDGUI__update_size (MDGUI__manager_t *mdgui) {
     mdgui->filebox.listbox.box.height = box_height;
     mdgui->filebox.listbox.box.width = box_width;
 
-    mdgui->metabox.box.x = MDGUI__get_box_x (mdgui, 1);
+    mdgui->metabox.box.x = MDGUI__get_box_x (mdgui, 1) + 1;
     mdgui->metabox.box.height = box_height - mdgui->meta_bottom - mdgui->meta_top;
-    mdgui->metabox.box.width = box_width;
+    mdgui->metabox.box.width = box_width - 2;
 
     mdgui->playlistbox.listbox.box.x = MDGUI__get_box_x (mdgui, 2);
     mdgui->playlistbox.listbox.box.height = box_height;

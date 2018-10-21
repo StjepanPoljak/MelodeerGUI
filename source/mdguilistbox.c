@@ -75,7 +75,7 @@ void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_selected) {
 
     if (listbox->str_array.cnum == 0) return;
 
-    if (listbox->box.height >= listbox->str_array.cnum)
+    if (listbox->box.height - 4 >= listbox->str_array.cnum)
 
         listbox->num_first = 0;
 
