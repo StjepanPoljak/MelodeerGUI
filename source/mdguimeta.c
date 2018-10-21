@@ -5,17 +5,13 @@
 
 void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox);
 void MDGUIMB__draw_progress_bar (MDGUI__meta_box_t *metabox);
+void MDGUIMB__reset_variables (MDGUI__meta_box_t *metabox);
 
 MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int width) {
 
     MDGUI__meta_box_t new_box;
 
-    new_box.metadata_present = false;
-    new_box.end_signal = false;
-    new_box.pause = false;
-    new_box.curr_sec = 0;
-    new_box.total_seconds = 0;
-    new_box.prev_state = -1;
+    MDGUIMB__reset_variables (&new_box);
 
     pthread_mutex_init (&new_box.mutex, NULL);
 
@@ -24,10 +20,23 @@ MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int wid
     return new_box;
 }
 
+void MDGUIMB__reset_variables (MDGUI__meta_box_t *metabox) {
+    
+    metabox->metadata_present = false;
+    metabox->pause = false;
+    metabox->total_seconds = 0;
+    metabox->end_signal = false;
+    metabox->curr_sec = 0;
+    metabox->prev_state = -1;
+}
+
 void MDGUIMB__draw (MDGUI__meta_box_t *metabox) {
 
     MDGUI__draw_box (&metabox->box);
     MDGUIMB__draw_contents (metabox);
+    
+    metabox->prev_state = -1;
+    
     MDGUIMB__draw_progress_bar (metabox);
 }
 
@@ -35,6 +44,7 @@ void MDGUIMB__redraw (MDGUI__meta_box_t *metabox) {
 
     MDGUI__draw_box_opt (&metabox->box, true);
     MDGUIMB__draw_contents (metabox);
+    MDGUIMB__draw_progress_bar (metabox);
 }
 
 void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox) {
@@ -111,8 +121,7 @@ void *MDGUIMB__countdown (void *data) {
 
         if (metabox->end_signal) {
 
-            metabox->end_signal = false;
-            metabox->curr_sec = 0;
+            MDGUIMB__reset_variables (metabox);
             pthread_mutex_unlock (&metabox->mutex);
 
             break;
@@ -132,10 +141,6 @@ void MDGUIMB__start_countdown (MDGUI__meta_box_t *metabox) {
     }
 }
 
-void MDGUIMB__end_countdown (MDGUI__meta_box_t *metabox) {
-
-}
-
 
 void MDGUIMB__draw_progress_bar (MDGUI__meta_box_t *metabox) {
 
@@ -143,7 +148,9 @@ void MDGUIMB__draw_progress_bar (MDGUI__meta_box_t *metabox) {
 
     float absolute_progress = metabox->curr_sec / metabox->total_seconds;
 
-    int boxes = absolute_progress * (metabox->box.width + 2);
+    int boxes = (metabox->total_seconds - metabox->curr_sec < 1) && metabox->metadata_present
+              ? metabox->box.width - 2
+              : absolute_progress * (metabox->box.width - 2);
 
     if (boxes == metabox->prev_state && metabox->metadata_present) return;
 
@@ -163,12 +170,10 @@ void MDGUIMB__draw_progress_bar (MDGUI__meta_box_t *metabox) {
 
 void MDGUIMB__load (MDGUI__meta_box_t *metabox, MD__metadata_t metadata) {
 
+    MDGUIMB__reset_variables (metabox);
+
     metabox->metadata_present = true;
     metabox->metadata = metadata;
-    metabox->curr_sec = 0;
-    metabox->pause = false;
-    metabox->end_signal = false;
-    metabox->prev_state = -1;
 
     metabox->total_seconds = (float)metabox->metadata.total_samples / (float)metabox->metadata.sample_rate;
 
@@ -198,11 +203,11 @@ void MDGUIMB__unload (MDGUI__meta_box_t *metabox) {
     metabox->end_signal = true;
     pthread_mutex_unlock (&metabox->mutex);
 
-    metabox->metadata_present = false;
+    pthread_join (metabox->clock_thread, NULL);
+
+    MDGUIMB__reset_variables (metabox);
 
     MDGUIMB__redraw (metabox);
-
-    pthread_join (metabox->clock_thread, NULL);
 }
 
 void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {
