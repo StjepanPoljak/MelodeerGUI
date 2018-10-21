@@ -49,9 +49,7 @@ void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox) {
     int term_pos_x = metabox->box.x;
     int term_pos_y = metabox->box.y;
     int width = metabox->box.width;
-    //
-    // // will move this later to event, as having this in draw method makes no sense
-    //
+
     // unsigned int total_seconds  = total_samples / sample_rate;
     // unsigned int hours          = total_seconds / 3600;
     // unsigned int minutes        = (total_seconds / 60) - (hours * 60);
@@ -75,12 +73,12 @@ void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox) {
     }
     else {
 
-        sample_rate_string_size = snprintf (NULL, 0, "%dHz %dbps", sample_rate, bps, channels_string) + 1;
+        sample_rate_string_size = snprintf (NULL, 0, "%dHz %dbps", sample_rate, bps) + 1;
 
         if (sample_rate_string_size < metabox->box.width - 2) {
 
             sample_rate_string = malloc (sizeof(*sample_rate_string) * sample_rate_string_size);
-            snprintf (sample_rate_string, sample_rate_string_size, "%dHz %dbps", sample_rate, bps, channels_string);
+            snprintf (sample_rate_string, sample_rate_string_size, "%dHz %dbps", sample_rate, bps);
         }
     }
 
