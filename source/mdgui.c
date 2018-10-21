@@ -608,10 +608,21 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 struct MDGUI__prepend_info pr_info;
 
-                pr_info.curr_dir = mdgui->filebox.curr_dir;
-                pr_info.curr_dir_str_size = MDGUI__get_string_size (mdgui->filebox.curr_dir);
+                pr_info.curr_dir = NULL;
 
-                MDGUI__str_array_copy_raw (&mdgui->filebox.listbox.str_array, &mdgui->playlistbox.filenames, mdgui->filebox.listbox.num_selected, mdgui->filebox.listbox.str_array.cnum - 1, &pr_info, MDGUI__str_transform_prepend_dir);
+                MDGUIFB__serialize_curr_dir (&mdgui->filebox, &pr_info.curr_dir);
+                pr_info.curr_dir_str_size = MDGUI__get_string_size (pr_info.curr_dir);
+
+                MDGUI__log (pr_info.curr_dir, mdgui->tinfo);
+
+                MDGUI__str_array_copy_raw (&mdgui->filebox.listbox.str_array,
+                                           &mdgui->playlistbox.filenames,
+                                            mdgui->filebox.listbox.num_selected,
+                                            mdgui->filebox.listbox.str_array.cnum - 1,
+                                           &pr_info,
+                                            MDGUI__str_transform_prepend_dir);
+
+                free (pr_info.curr_dir);
 
                 mdgui->playlistbox.num_playing = 0;
                 mdgui->playlistbox.listbox.num_selected = -1;
@@ -624,6 +635,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
                     MDGUI__start_playing (mdgui);
                     break;
                 }
+
                 MDGUI__mutex_unlock (mdgui);
 
                 break;
@@ -634,7 +646,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         case MDGUI__PLAYLIST:
 
-            if (!filebox_or_playlist_return(mdgui)) {
+            if (!filebox_or_playlist_return (mdgui)) {
 
                 MDGUI__mutex_unlock (mdgui);
                 break;
@@ -854,13 +866,18 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
         MDGUI__mutex_lock (mdgui);
 
-        if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
+        if (mdgui->current_play_state == MDGUI__PLAYING
+         || mdgui->current_play_state == MDGUI__PAUSE) {
 
             MD__toggle_pause (mdgui->curr_playing);
 
-            mdgui->current_play_state = MD__is_paused (mdgui->curr_playing) ? MDGUI__PAUSE : MDGUI__PLAYING;
+            mdgui->current_play_state = MD__is_paused (mdgui->curr_playing)
+                                      ? MDGUI__PAUSE
+                                      : MDGUI__PLAYING;
 
-            MDGUI__log (mdgui->current_play_state == MDGUI__PAUSE ? "Playing paused." : "Playing resumed.", mdgui->tinfo);
+            MDGUI__log (mdgui->current_play_state == MDGUI__PAUSE
+                        ? "Playing paused."
+                        : "Playing resumed.", mdgui->tinfo);
         }
 
         MDGUI__mutex_unlock (mdgui);
@@ -934,7 +951,7 @@ void *terminal_change (void *data) {
 
     MDGUI__terminal previous_tinfo = mdgui->tinfo;
 
-    struct timespec tsp = {0,10000};
+    struct timespec tsp = {0, 10000};
 
     while (true) {
 
@@ -951,21 +968,20 @@ void *terminal_change (void *data) {
 
         mdgui->tinfo = MDGUI__get_terminal_information ();
 
-        if (mdgui->tinfo.cols != previous_tinfo.cols || mdgui->tinfo.lines != previous_tinfo.lines) {
+        if (mdgui->tinfo.cols != previous_tinfo.cols
+         || mdgui->tinfo.lines != previous_tinfo.lines) {
 
             MDGUI__update_size (mdgui);
-
-            if (mdgui->filebox.listbox.box.height >= mdgui->filebox.listbox.str_array.cnum) mdgui->filebox.listbox.num_first = 0;
-
-            if (mdgui->playlistbox.listbox.box.height >= mdgui->playlistbox.listbox.str_array.cnum) mdgui->playlistbox.listbox.num_first = 0;
 
             clear();
 
             MDGUI__draw (mdgui);
 
-            unsigned int tinfo_size = snprintf (NULL, 0, "Changed size to %d x %d.", mdgui->tinfo.cols, mdgui->tinfo.lines) + 1;
+            unsigned int tinfo_size = snprintf (NULL, 0, "Changed size to %d x %d.",
+                                                mdgui->tinfo.cols, mdgui->tinfo.lines) + 1;
             char *tinfo_string = malloc (sizeof (*tinfo_string) * tinfo_size);
-            snprintf (tinfo_string, tinfo_size, "Changed size to %d x %d.", mdgui->tinfo.cols, mdgui->tinfo.lines);
+            snprintf (tinfo_string, tinfo_size, "Changed size to %d x %d.", mdgui->tinfo.cols,
+                      mdgui->tinfo.lines);
 
             MDGUI__log (tinfo_string, mdgui->tinfo);
 
@@ -983,7 +999,7 @@ void MDGUI__start_playing (MDGUI__manager_t *mdgui) {
     MDGUI__mutex_lock (mdgui);
 
     if (mdgui->playlistbox.num_playing < 0
-       || mdgui->playlistbox.num_playing >= mdgui->playlistbox.filenames.cnum) {
+     || mdgui->playlistbox.num_playing >= mdgui->playlistbox.filenames.cnum) {
 
         mdgui->playlistbox.num_playing = -1;
 
@@ -1015,7 +1031,8 @@ void MDGUI__complete (MDGUI__manager_t *mdgui) {
 
     MDGUI__mutex_lock (mdgui);
 
-    if (mdgui->current_play_state == MDGUI__PLAYING || mdgui->current_play_state == MDGUI__PAUSE) {
+    if (mdgui->current_play_state == MDGUI__PLAYING
+     || mdgui->current_play_state == MDGUI__PAUSE) {
 
         mdgui->current_play_state = MDGUI__PROGRAM_EXIT;
 

@@ -8,13 +8,94 @@ MDGUI__file_box_t MDGUIFB__create (char *name, int x, int y, int height, int wid
 
     new_fb.listbox = MDGUILB__create (name, x, y, height, width, true);
 
-    new_fb.curr_dir = NULL;
+    new_fb.last = NULL;
 
     MDGUIFB__get_current_dir (&new_fb);
 
     MDGUIFB__get_dir_contents (&new_fb);
 
     return new_fb;
+}
+
+void MDGUIFB__stack_element_init (struct MDGUI__file_box_stack *stack_el,
+                                  char *filename, int num_first, int num_highlighted) {
+
+    int filename_size = MDGUI__get_string_size (filename) + 1;
+
+    stack_el->dir = malloc (sizeof (*filename) * filename_size);
+
+    for (int i = 0; i < filename_size; i++) stack_el->dir[i] = filename[i];
+
+    stack_el->num_highlighted = num_highlighted;
+    stack_el->num_first = num_first;
+    stack_el->previous = NULL;
+
+    return;
+}
+
+void MDGUIFB__stack_element_deinit (struct MDGUI__file_box_stack *stack_el) {
+
+    if (stack_el->dir) free (stack_el->dir);
+}
+
+void MDGUIFB__stack_push (MDGUI__file_box_t *filebox) {
+
+    struct MDGUI__file_box_stack *new_stack_el = malloc (sizeof(*new_stack_el));
+
+    char *filename = filebox->listbox.str_array.carray [filebox->listbox.num_selected];
+
+    MDGUIFB__stack_element_init (new_stack_el, &(filename[1]), filebox->listbox.num_first, filebox->listbox.num_selected);
+
+    if (!filebox->last) filebox->last = new_stack_el;
+
+    else {
+
+        new_stack_el->previous = filebox->last;
+        filebox->last = new_stack_el;
+    }
+
+    filebox->listbox.num_selected = 0;
+    filebox->listbox.num_first = 0;
+
+    return;
+}
+
+void MDGUIFB__stack_pop (MDGUI__file_box_t *filebox) {
+
+    if (!filebox->last) return;
+
+    struct MDGUI__file_box_stack *to_pop = filebox->last;
+
+    filebox->listbox.num_selected = to_pop->num_highlighted;
+    filebox->listbox.num_first = to_pop->num_first;
+
+    if (filebox->last->previous) filebox->last = filebox->last->previous;
+
+    else filebox->last = NULL;
+
+    MDGUIFB__stack_element_deinit (to_pop);
+    free (to_pop);
+
+    return;
+}
+
+void MDGUIFB__stack_deinit (MDGUI__file_box_t *filebox) {
+
+    struct MDGUI__file_box_stack *current = filebox->last;
+
+    if (!current) return;
+
+    while (true) {
+
+        if (!current) break;
+
+        struct MDGUI__file_box_stack *to_free = current;
+        current = current->previous;
+        MDGUIFB__stack_element_deinit (to_free);
+        free (to_free);
+    }
+
+    return;
 }
 
 bool MDGUIFB__return (MDGUI__file_box_t *filebox) {
@@ -35,23 +116,19 @@ bool MDGUIFB__return (MDGUI__file_box_t *filebox) {
 
         int selected_size = MDGUI__get_string_size (&(selected[1]));
 
-        if ((selected_size == 1 && selected[1] == '.') || selected_size == 0) return false;
+        if ((selected_size == 1 && selected[1] == '.') || selected_size == 0)
 
-        else if (selected_size == 2 && selected[1] == '.' && selected[2] == '.') {
+            return false;
 
-            MDGUIFB__get_parent_dir (filebox);
+        else if (selected_size == 2 && selected[1] == '.' && selected[2] == '.')
 
-        }
-        else {
+            MDGUIFB__stack_pop (filebox);
 
-            MDGUIFB__append_to_dirname (filebox, &(selected[1]), &filebox->curr_dir);
+        else
 
-        }
+            MDGUIFB__stack_push (filebox);
 
         MDGUIFB__get_dir_contents (filebox);
-
-        filebox->listbox.num_selected = 0;
-        filebox->listbox.num_first = 0;
 
         MDGUIFB__redraw (filebox);
 
@@ -61,104 +138,59 @@ bool MDGUIFB__return (MDGUI__file_box_t *filebox) {
     return false;
 }
 
+void MDGUIFB__parse_filename (MDGUI__file_box_t *filebox, char *filename) {
+
+    int i_first = -1;
+    int i_length = 0;
+
+    int filename_size = MDGUI__get_string_size (filename) + 1;
+
+    for (int i=0; i < filename_size; i++) {
+
+        if (i_length > 0 && (filename[i] == '/' || filename[i] == 0) && i_first != -1) {
+
+            char *to_add = malloc ((i_length+1) * sizeof (char));
+
+            for (int j=0; j < i_length; j++) to_add [j] = filename[j + i_first];
+
+            to_add[i_length] = 0;
+
+            struct MDGUI__file_box_stack *new_stack_el = malloc (sizeof(*new_stack_el));
+
+            MDGUIFB__stack_element_init (new_stack_el, to_add, 0, 0);
+
+            if (!filebox->last) filebox->last = new_stack_el;
+
+            else {
+
+                new_stack_el->previous = filebox->last;
+                filebox->last = new_stack_el;
+            }
+
+            free (to_add);
+
+            i_length = 0;
+
+            i_first = i + 1;
+
+            continue;
+        }
+        else if (filename[i] == '/') {
+
+            i_first = i + 1;
+            i_length = 0;
+        }
+        else if (i_first != -1) i_length ++;
+    }
+}
+
 void MDGUIFB__get_current_dir (MDGUI__file_box_t *filebox) {
 
     char cwd[PATH_MAX];
 
-    if (getcwd (cwd, sizeof(cwd)) == NULL) {
+    if (getcwd (cwd, sizeof(cwd)))
 
-        if (filebox->curr_dir) {
-
-            char *oldcurrdir = filebox->curr_dir;
-            filebox->curr_dir = NULL;
-            free (oldcurrdir);
-        }
-
-        return;
-    }
-
-    int cwd_str_size = MDGUI__get_string_size (cwd) + 1;
-
-    if (filebox->curr_dir) filebox->curr_dir = realloc (filebox->curr_dir, sizeof (filebox->curr_dir) * cwd_str_size);
-
-    else filebox->curr_dir = malloc (sizeof (filebox->curr_dir) * cwd_str_size);
-
-    for(int i=0; i<cwd_str_size; i++) filebox->curr_dir[i] = cwd[i];
-
-    return;
-}
-
-void MDGUIFB__append_to_dirname (MDGUI__file_box_t *filebox, char *append, char *result[]) {
-
-    int string_count = MDGUI__get_string_size (filebox->curr_dir);
-    int append_count = MDGUI__get_string_size (append);
-
-    char *string = malloc (sizeof (*filebox->curr_dir) * (string_count + 1));
-
-    for (int i=0; i<=string_count; i++) string[i] = filebox->curr_dir[i];
-
-    int new_size = string_count + append_count + 1;
-
-    bool needs_slash = string[string_count - 1] != '/' || append[0] != '/';
-
-    int final_size = needs_slash ? ++new_size : new_size;
-
-    if (*result) *result = realloc (*result, sizeof (**result) * final_size);
-    else *result = malloc (sizeof (**result) * final_size);
-
-    for (int i=0; i < string_count; i++) (*result)[i] = string[i];
-
-    if (needs_slash) (*result) [string_count] = '/';
-
-    for (int i=0; i < append_count; i++) (*result)[i + string_count + (needs_slash ? 1 : 0)] = append[i];
-
-    (*result) [new_size - 1] = 0;
-}
-
-void MDGUIFB__get_parent_dir (MDGUI__file_box_t *filebox) {
-
-    int last = MDGUI__get_string_size (filebox->curr_dir);
-
-    char *curr = malloc (sizeof (*curr) * (last + 1));
-
-    for (int i=0; i<=last; i++) curr[i] = filebox->curr_dir[i];
-
-    if (last <= 1) {
-
-        if (filebox->curr_dir) filebox->curr_dir = realloc (filebox->curr_dir, sizeof (*filebox->curr_dir) * (last + 1));
-
-        else filebox->curr_dir = malloc (sizeof (*filebox->curr_dir) * (last + 1));
-
-        filebox->curr_dir[0] = curr[0];
-
-        if (last == 1) filebox->curr_dir[1] = curr[1];
-
-        if (curr) free (curr);
-
-        return;
-    }
-
-    int new_last = last;
-
-    while (curr[--new_last] != '/' || new_last == last - 1) { }
-
-    if (new_last == 0) new_last = 1;
-
-    if (filebox->curr_dir) filebox->curr_dir = realloc (filebox->curr_dir, sizeof (*filebox->curr_dir) * (new_last + 1));
-
-    else filebox->curr_dir = malloc (sizeof (*filebox->curr_dir) * (new_last + 1));
-
-    if (new_last == 1) {
-
-        if (curr[0] == '/') filebox->curr_dir[0] = '/';
-
-        else filebox->curr_dir[0] = '.';
-
-    } else for (int i=0; i<new_last; i++) filebox->curr_dir[i] = curr[i];
-
-    filebox->curr_dir [new_last] = 0;
-
-    if (curr) free (curr);
+        MDGUIFB__parse_filename (filebox, cwd);
 
     return;
 }
@@ -183,6 +215,68 @@ bool MDGUI__compare (char *string1, char *string2) {
     return string1_size > string2_size;
 }
 
+void MDGUIFB__serialize_curr_dir (MDGUI__file_box_t *filebox, char **curr_dir) {
+
+    if (!filebox->last) {
+
+        if (*curr_dir) *curr_dir = realloc (*curr_dir, sizeof (**curr_dir) * 2);
+
+        else *curr_dir = malloc (sizeof (**curr_dir) * 2);
+
+        (*curr_dir)[0] = '/';
+        (*curr_dir)[1] = 0;
+
+        return;
+    }
+
+    struct MDGUI__file_box_stack *current = filebox->last;
+
+    if (!current) return;
+
+    int curr_dir_size = 0;
+
+    while (true) {
+
+        if (!current) break;
+
+        curr_dir_size += MDGUI__get_string_size (current->dir) + 1;
+
+        current = current->previous;
+    }
+
+    curr_dir_size++;
+
+    if (*curr_dir) *curr_dir = realloc (*curr_dir, sizeof (**curr_dir) * curr_dir_size);
+
+    else *curr_dir = malloc (sizeof (**curr_dir) * curr_dir_size);
+
+    int i=curr_dir_size - 1;
+
+    (*curr_dir)[i--] = 0;
+
+    current = filebox->last;
+
+    while (true) {
+
+        if (i<=0) break;
+
+        if (!current) break;
+
+        else {
+            for (int j=MDGUI__get_string_size (current->dir) - 1; j >= 0; j--) {
+
+                if (i<=0) break;
+
+                (*curr_dir)[i--] = current->dir[j];
+            }
+
+            (*curr_dir)[i--] = '/';
+
+            current = current->previous;
+        }
+    }
+}
+
 bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 
     DIR *d;
@@ -190,7 +284,11 @@ bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 
     int last = 0;
 
-    d = opendir (filebox->curr_dir);
+    char *curr_dir = NULL;
+
+    MDGUIFB__serialize_curr_dir (filebox, &curr_dir);
+
+    d = opendir (curr_dir);
 
     if (d) {
 
@@ -202,7 +300,7 @@ bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 
             // NOTE: first byte reserved for file info, 'f' if file, 'd' if dir
 
-            char *tempdir = malloc (sizeof (*tempdir) * dir_name_size + 1);
+            char *tempdir = malloc (sizeof (*tempdir) * (dir_name_size + 1));
 
             if (dir->d_type == DT_DIR) tempdir[0] = 'd';
             else tempdir[0] = 'f';
@@ -218,8 +316,12 @@ bool MDGUIFB__get_dir_contents (MDGUI__file_box_t *filebox) {
 
         closedir (d);
 
+        if (curr_dir) free (curr_dir);
+
         return true;
     }
+
+    if (curr_dir) free (curr_dir);
 
     return false;
 }
@@ -238,5 +340,5 @@ void MDGUIFB__deinit (MDGUI__file_box_t *filebox) {
 
     MDGUILB__deinit (&filebox->listbox);
 
-    if (filebox->curr_dir) free (filebox->curr_dir);
+    MDGUIFB__stack_deinit (filebox);
 }

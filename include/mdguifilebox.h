@@ -11,14 +11,15 @@ struct MDGUI__file_box_stack {
     char *dir;
     int num_highlighted;
     int num_first;
+
+    struct MDGUI__file_box_stack *previous;
 };
 
 struct MDGUI__file_box {
 
     MDGUI__listbox_t listbox;
 
-    // will replace this with stack from above
-    char *curr_dir;
+    struct MDGUI__file_box_stack *last;
 };
 
 typedef struct MDGUI__file_box MDGUI__file_box_t;
@@ -32,11 +33,9 @@ void    MDGUIFB__redraw                 (MDGUI__file_box_t *filebox);
 
 bool    MDGUIFB__return                 (MDGUI__file_box_t *filebox);
 
-void    MDGUIFB__append_to_dirname      (MDGUI__file_box_t *filebox, char *append, char *result[]);
-
-void    MDGUIFB__get_parent_dir         (MDGUI__file_box_t *filebox);
-
 bool    MDGUIFB__get_dir_contents       (MDGUI__file_box_t *filebox);
+
+void    MDGUIFB__serialize_curr_dir     (MDGUI__file_box_t *filebox, char **curr_dir);
 
 void    MDGUIFB__deinit                 (MDGUI__file_box_t *filebox);
 

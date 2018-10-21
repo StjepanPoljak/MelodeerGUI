@@ -75,6 +75,10 @@ void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_selected) {
 
     if (listbox->str_array.cnum == 0) return;
 
+    if (listbox->box.height >= listbox->str_array.cnum)
+
+        listbox->num_first = 0;
+
     int line = 0;
 
     int num_lines = MDGUILB__num_lines (listbox);
@@ -132,6 +136,7 @@ void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_selected) {
 }
 
 void MDGUILB__draw (MDGUI__listbox_t *listbox, int num_selected) {
+
 
     MDGUI__draw_box (&listbox->box);
     MDGUILB__print_out (listbox, num_selected);

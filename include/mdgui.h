@@ -41,7 +41,6 @@ enum            MDGUI__play_state {
                         MDGUI__PAUSE,
                         MDGUI__PLAYING,
                         MDGUI__WAITING_TO_STOP,
-                        MDGUI__EVALUATING,
                         MDGUI__INITIALIZING,
                         MDGUI__PROGRAM_EXIT,
                         MDGUI__READY_TO_EXIT
