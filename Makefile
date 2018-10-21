@@ -7,15 +7,15 @@ builddir = build
 depsdir = include
 
 $(proj): $(objects)
-	gcc $(addprefix $(builddir)/,$^) $(addprefix -l,$(libs)) -o $(proj) -g
+	gcc $(addprefix $(builddir)/,$^) $(addprefix -l,$(libs)) -o $(proj)
 	@-./save.sh
 
 %.o: $(srcdir)/%.c $(depsdir)/%.h
-	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir) -g
+	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir)
 
 main.o: $(srcdir)/main.c
 	-mkdir $(builddir)
-	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir) -g
+	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir)
 
 .PHONY=clean
 clean:
