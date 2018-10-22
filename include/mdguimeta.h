@@ -6,6 +6,16 @@
 
 #include <melodeer/mdcore.h>
 
+struct MDGUIMB__FFT {
+
+    int fft_sample_size;
+    unsigned char *fft_sample;
+};
+
+enum MDGUIMB__state { MDGUIMB__NONE, MDGUIMB__FFT, MDGUIMB__ALERT };
+
+typedef enum MDGUIMB__state MDGUIMB__state_t;
+
 struct MDGUI__meta_box {
 
     MDGUI__box_t box;
@@ -21,8 +31,22 @@ struct MDGUI__meta_box {
 
     float total_seconds;
 
+    int hours;
+    int minutes;
+    int seconds;
+
+    int curr_hours;
+    int curr_minutes;
+    int curr_seconds;
+
+    bool resized;
+
     pthread_t clock_thread;
     pthread_mutex_t mutex;
+
+    struct MDGUIMB__FFT *fft_data;
+    int fft_data_last;
+    int fft_data_size;
 };
 
 typedef struct MDGUI__meta_box MDGUI__meta_box_t;

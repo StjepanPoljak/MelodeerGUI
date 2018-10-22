@@ -302,6 +302,10 @@ void MDGUI__play_complete (void *user_data) {
 
     MDGUI__log ("Done playing!", mdgui->tinfo);
 
+    MD__file_t *to_free = mdgui->curr_playing;
+    mdgui->curr_playing = NULL;
+    free (to_free);
+
     MDGUIMB__unload (&mdgui->metabox);
 
     if (mdgui->current_play_state == MDGUI__PROGRAM_EXIT) {
@@ -401,7 +405,7 @@ void *MDGUI__play (void *data) {
 
     MDGUI__mutex_lock (mdgui);
 
-    MD__file_t current_file;
+    MD__file_t *current_file = malloc (sizeof(*current_file));
 
     MDGUI__log ("Query filename.", mdgui->tinfo);
 
@@ -428,15 +432,15 @@ void *MDGUI__play (void *data) {
 
     MDGUI__log ("Got filename.", mdgui->tinfo);
 
-    if (MD__initialize_with_user_data (&current_file, filename, data)) {
+    if (MD__initialize_with_user_data (current_file, filename, data)) {
 
-        mdgui->curr_playing = &current_file;
+        mdgui->curr_playing = current_file;
 
         MDGUI__log ("File initalized.", mdgui->tinfo);
 
         MDGUI__mutex_unlock (mdgui);
 
-        if (!MD__play_raw_with_decoder (&current_file, MD__handle_metadata, MDGUI__started_playing,
+        if (!MD__play_raw_with_decoder (current_file, MD__handle_metadata, MDGUI__started_playing,
                                         MDGUI__handle_error, NULL, MDGUI__play_complete)) {
 
             MDGUI__mutex_lock (mdgui);
@@ -533,6 +537,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
             case MDGUI__METABOX:
 
                 MDGUI__deselect_box (&mdgui->metabox.box);
+                MDGUIMB__draw (&mdgui->metabox);
                 break;
 
             case MDGUI__LOGO:
@@ -582,6 +587,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
             case MDGUI__METABOX:
 
                 MDGUI__select_box (&mdgui->metabox.box);
+                MDGUIMB__draw (&mdgui->metabox);
                 break;
 
             case MDGUI__LOGO:
@@ -684,11 +690,13 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
                 mdgui->potential_component = MDGUI__METABOX;
                 MDGUI__draw_logo (mdgui);
                 MDGUI__highlight_box (&mdgui->metabox.box);
+                MDGUIMB__draw (&mdgui->metabox);
             }
             else if (mdgui->potential_component == MDGUI__NONE) {
 
                 mdgui->potential_component = MDGUI__METABOX;
                 MDGUI__highlight_box (&mdgui->metabox.box);
+                MDGUIMB__draw (&mdgui->metabox);
             }
 
             break;
@@ -725,6 +733,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
                 mdgui->potential_component = MDGUI__LOGO;
                 MDGUI__draw_logo (mdgui);
                 MDGUI__unhighlight_box (&mdgui->metabox.box);
+                MDGUIMB__draw (&mdgui->metabox);
             }
 
             else if (mdgui->potential_component == MDGUI__NONE) {
@@ -776,6 +785,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 MDGUI__unhighlight_box (&mdgui->filebox.listbox.box);
                 MDGUI__highlight_box (&mdgui->metabox.box);
+                MDGUIMB__draw (&mdgui->metabox);
 
                 break;
 
@@ -791,6 +801,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 mdgui->potential_component = MDGUI__PLAYLIST;
                 MDGUI__unhighlight_box (&mdgui->metabox.box);
+                MDGUIMB__draw (&mdgui->metabox);
                 MDGUI__highlight_box (&mdgui->playlistbox.listbox.box);
 
                 break;
@@ -834,6 +845,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
                 mdgui->potential_component = MDGUI__FILEBOX;
 
                 MDGUI__unhighlight_box (&mdgui->metabox.box);
+                MDGUIMB__draw (&mdgui->metabox);
                 MDGUI__highlight_box (&mdgui->filebox.listbox.box);
 
                 break;
@@ -844,6 +856,7 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 
                 MDGUI__unhighlight_box (&mdgui->playlistbox.listbox.box);
                 MDGUI__highlight_box (&mdgui->metabox.box);
+                MDGUIMB__draw (&mdgui->metabox);
                 break;
 
             default:

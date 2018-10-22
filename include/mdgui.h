@@ -30,7 +30,9 @@ enum            MDGUI__component {
                         MDGUI__FILEBOX,
                         MDGUI__METABOX,
                         MDGUI__PLAYLIST,
-                        MDGUI__LOGO
+                        MDGUI__LOGO,
+
+                        MDGUI__META_ALERT
                 };
 
 typedef enum MDGUI__component MDGUI__component;
