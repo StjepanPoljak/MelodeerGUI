@@ -5,11 +5,13 @@
 #include <pthread.h>
 
 #include <melodeer/mdcore.h>
+#include <melodeer/mdutils.h>
 
 struct MDGUIMB__FFT {
 
-    int fft_sample_size;
-    unsigned char *fft_sample;
+    float offset_seconds;
+    float *fft_sample;
+    struct MDGUIMB__FFT *next;
 };
 
 enum MDGUIMB__state { MDGUIMB__NONE, MDGUIMB__FFT, MDGUIMB__ALERT };
@@ -44,9 +46,10 @@ struct MDGUI__meta_box {
     pthread_t clock_thread;
     pthread_mutex_t mutex;
 
-    struct MDGUIMB__FFT *fft_data;
-    int fft_data_last;
-    int fft_data_size;
+    struct MDGUIMB__FFT *fft_first;
+    struct MDGUIMB__FFT *fft_curr;
+    struct MDGUIMB__FFT *fft_last;
+    int fft_sample_size;
 };
 
 typedef struct MDGUI__meta_box MDGUI__meta_box_t;
@@ -66,6 +69,8 @@ void    MDGUIMB__start_countdown        (MDGUI__meta_box_t *metabox);
 void    MDGUIMB__set_pause              (MDGUI__meta_box_t *metabox);
 
 void    MDGUIMB__unset_pause            (MDGUI__meta_box_t *metabox);
+
+void    MDGUIMB__fft_queue               (MDGUI__meta_box_t *metabox, float *sample, float seconds);
 
 void    MDGUIMB__deinit                 (MDGUI__meta_box_t *metabox);
 

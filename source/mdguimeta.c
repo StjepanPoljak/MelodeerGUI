@@ -1,5 +1,7 @@
 #include "mdguimeta.h"
+
 #include <unistd.h>
+#include <limits.h>
 
 #include "mdguistrarr.h"
 
@@ -12,7 +14,11 @@ MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int wid
 
     MDGUI__meta_box_t new_box;
 
-    new_box.fft_data = NULL;
+    new_box.fft_first = NULL;
+    new_box.fft_curr = NULL;
+    new_box.fft_last = NULL;
+
+    new_box.fft_sample_size = 2048;
 
     MDGUIMB__reset_variables (&new_box);
 
@@ -24,7 +30,7 @@ MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int wid
 }
 
 void MDGUIMB__reset_variables (MDGUI__meta_box_t *metabox) {
-    
+
     metabox->metadata_present = false;
     metabox->pause = false;
     metabox->total_seconds = 0;
@@ -39,17 +45,13 @@ void MDGUIMB__reset_variables (MDGUI__meta_box_t *metabox) {
     metabox->hours = 0;
     metabox->minutes = 0;
     metabox->seconds = 0;
-
-    metabox->fft_data_last = -1;
-    metabox->fft_data_size = 0;
-
 }
 
 void MDGUIMB__draw (MDGUI__meta_box_t *metabox) {
 
     MDGUI__draw_box (&metabox->box);
     MDGUIMB__draw_contents (metabox);
-    
+
     metabox->prev_state = -1;
     metabox->resized = true;
 
@@ -72,9 +74,11 @@ void MDGUIMB__draw_time (MDGUI__meta_box_t *metabox) {
 
     if (metabox->total_seconds == 0 || !metabox->metadata_present) return;
 
-    int curr_hours = (int)(metabox->curr_sec / 3600);
-    int curr_minutes = (int)((metabox->curr_sec / 60) - (float)(curr_hours * 60));
-    int curr_seconds = (int)(metabox->curr_sec - (float)(60 * curr_minutes));
+    int curr_hours      = (int)(metabox->curr_sec / 3600);
+    int curr_minutes    = (int)((metabox->curr_sec / 60)
+                        - (float)(curr_hours * 60));
+    int curr_seconds    = (int)(metabox->curr_sec
+                        - (float)(60 * curr_minutes));
 
     if (curr_hours != metabox->curr_hours
      || curr_minutes != metabox->curr_minutes
@@ -99,8 +103,8 @@ void MDGUIMB__draw_time (MDGUI__meta_box_t *metabox) {
         total_string = malloc(sizeof(*total_string) * total_string_size);
         snprintf (total_string, total_string_size, "%d:%02d:%02d", metabox->hours, metabox->minutes, metabox->seconds);
     }
-    else
-    {
+    else {
+
         int total_string_size = snprintf (NULL, 0, "%d:%02d", metabox->minutes, metabox->seconds) + 1;
         total_string = malloc(sizeof(*total_string) * total_string_size);
         snprintf (total_string, total_string_size, "%d:%02d", metabox->minutes, metabox->seconds);
@@ -110,6 +114,7 @@ void MDGUIMB__draw_time (MDGUI__meta_box_t *metabox) {
     int final_string_size = 0;
 
     if (curr_hours > 0) {
+
         final_string_size = snprintf (NULL, 0, "%d:%02d:%02d / %s", curr_hours, curr_minutes, curr_seconds, total_string) + 1;
         final_string = malloc(sizeof(*final_string) * final_string_size);
         snprintf (final_string, final_string_size, "%d:%02d:%02d / %s", curr_hours, curr_minutes, curr_seconds, total_string);
@@ -191,6 +196,16 @@ void *MDGUIMB__countdown (void *data) {
 
         metabox->curr_sec += 0.05;
 
+        while (metabox->fft_curr->offset_seconds < metabox->curr_sec) {
+            if (!metabox->fft_curr) break;
+            metabox->fft_curr = metabox->fft_curr->next;
+        }
+
+        float *new_sample = metabox->fft_curr->fft_sample;
+
+        mvprintw (0,0,"%02.2f - %02.2f - %02.2f - %02.2f - %02.2f - %02.2f - %02.2f - %02.2f", new_sample[0], new_sample[1], new_sample[2], new_sample[3], new_sample[4], new_sample[5], new_sample[6], new_sample[7]);
+        refresh ();
+
         MDGUIMB__draw_progress_bar (metabox);
         MDGUIMB__draw_time (metabox);
 
@@ -257,8 +272,6 @@ void MDGUIMB__load (MDGUI__meta_box_t *metabox, MD__metadata_t metadata) {
     metabox->minutes        = (int)((metabox->total_seconds / 60) - (float)(metabox->hours * 60));
     metabox->seconds        = (int)(metabox->total_seconds - (float)(60 * metabox->minutes));
 
-    metabox->fft_data       = malloc (sizeof(*metabox->fft_data) * ((int)metabox->total_seconds) * 2);
-
     MDGUIMB__redraw (metabox);
 }
 
@@ -295,7 +308,26 @@ void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {
 
     pthread_mutex_destroy (&metabox->mutex);
 
-    if (metabox->fft_data) free (metabox->fft_data);
-
     MDGUI__box_deinit (&metabox->box);
+}
+
+void MDGUIMB__fft_queue (MDGUI__meta_box_t *metabox, float *sample, float seconds) {
+
+    struct MDGUIMB__FFT *new_el = malloc (sizeof(*new_el));
+
+    new_el->fft_sample = sample;
+    new_el->offset_seconds = seconds;
+    new_el->next = NULL;
+
+    if (!metabox->fft_first) {
+
+        metabox->fft_first = new_el;
+        metabox->fft_last = new_el;
+        metabox->fft_curr = new_el;
+    }
+    else {
+        metabox->fft_last->next = new_el;
+        metabox->fft_last = new_el;
+
+    }
 }

@@ -15,6 +15,11 @@ void        MDGUI__start_playing            (MDGUI__manager_t *mdgui);
 bool        MDGUI__stop_all_playing         (MDGUI__manager_t *mdgui);
 void        MDGUI__complete                 (MDGUI__manager_t *mdgui);
 
+void    MDGUIMB__transform              (volatile MD__buffer_chunk_t *curr_chunk,
+                                         unsigned int sample_rate,
+                                         unsigned int channels,
+                                         unsigned int bps, void *user_data);
+
 int MDGUI__get_box_width (MDGUI__manager_t *mdgui) {
 
     return (mdgui->tinfo.cols - mdgui->left - mdgui->right) / 3;
@@ -435,6 +440,8 @@ void *MDGUI__play (void *data) {
     if (MD__initialize_with_user_data (current_file, filename, data)) {
 
         mdgui->curr_playing = current_file;
+
+        mdgui->curr_playing->MD__buffer_transform = MDGUIMB__transform;
 
         MDGUI__log ("File initalized.", mdgui->tinfo);
 
@@ -1082,4 +1089,61 @@ void MDGUI__deinit (MDGUI__manager_t *mdgui) {
     MDGUIMB__deinit (&mdgui->metabox);
     MDGUIPB__deinit (&mdgui->playlistbox);
     MDGUIFB__deinit (&mdgui->filebox);
+}
+
+
+void MDGUIMB__transform (volatile MD__buffer_chunk_t *curr_chunk,
+                         unsigned int sample_rate,
+                         unsigned int channels,
+                         unsigned int bps,
+                         void *user_data) {
+
+    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
+
+    static float complex buffer[4096];
+    static float complex output[4096];
+
+    int count = curr_chunk->size/((bps/8)*channels);
+
+    for (int i=0; i<count; i++) {
+
+        float mono_mix = 0;
+
+        for (int c=0; c<channels; c++) {
+
+            // this will depend on bps...
+            short data = 0;
+
+            for (int b=0; b<bps/8; b++)
+
+                data = data + ((short)(curr_chunk->chunk[i * channels * (bps/8) + (c*channels) + b]) << (8*b));
+
+            mono_mix += (((float)data) / SHRT_MAX)/channels;
+        }
+
+        buffer[i] = 0*I + mono_mix;
+    }
+
+    int new_count = count / 2;
+
+    for (int i=0; i<2; i++) {
+
+        MDFFT__apply_hanning (&(buffer[new_count*i]), new_count);
+
+        MDFFT__iterative (false, &(buffer[new_count*i]), output, new_count);
+
+        for (int j=0; j<new_count; j++) output[j] = output[j] / new_count;
+
+        float *new_sample = malloc (sizeof (*new_sample) * 16);
+
+        MDFFT__to_amp_surj (output, new_count / 2, new_sample, 16);
+
+        float secs = ((((float)curr_chunk->order) + i * 1/2) * curr_chunk->size / (bps * channels / 8)) / sample_rate;
+
+        MDGUIMB__fft_queue (&mdgui->metabox, new_sample, secs);
+    }
+        //     for (int b=0; b<bps/8; b++)
+        //
+        //         curr_chunk->chunk[i*channels*(bps/8)+(c*channels)+b] = data >> 8*b;
+        // }
 }
