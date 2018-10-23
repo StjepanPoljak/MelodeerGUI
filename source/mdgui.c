@@ -44,7 +44,7 @@ bool MDGUI__init (MDGUI__manager_t *mdgui) {
     mdgui->left = 2;
     mdgui->right = 2;
     mdgui->meta_top = 7;
-    mdgui->meta_bottom = 2;
+    mdgui->meta_bottom = 1;
 
     pthread_mutex_init (&mdgui->mutex, NULL);
 
@@ -986,10 +986,13 @@ void *terminal_change (void *data) {
         nanosleep(&tsp, NULL);
 
         MDGUI__mutex_lock (mdgui);
+        pthread_mutex_lock (&mdgui->metabox.mutex);
 
         if (mdgui->current_play_state == MDGUI__PROGRAM_EXIT) {
 
             MDGUI__mutex_unlock (mdgui);
+
+            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
         }
@@ -1012,11 +1015,14 @@ void *terminal_change (void *data) {
                       mdgui->tinfo.lines);
 
             MDGUI__log (tinfo_string, mdgui->tinfo);
+            if (tinfo_string) free (tinfo_string);
 
             previous_tinfo = mdgui->tinfo;
         }
 
         MDGUI__mutex_unlock (mdgui);
+
+        pthread_mutex_unlock (&mdgui->metabox.mutex);
     }
 
     return NULL;
