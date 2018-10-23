@@ -9,16 +9,14 @@ void    MDGUIMB__draw_contents      (MDGUI__meta_box_t *metabox);
 void    MDGUIMB__draw_progress_bar  (MDGUI__meta_box_t *metabox);
 void    MDGUIMB__reset_variables    (MDGUI__meta_box_t *metabox);
 void    MDGUIMB__draw_time          (MDGUI__meta_box_t *metabox);
+void    MDGUIMB__draw_fft           (MDGUI__meta_box_t *metabox);
 
 MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int width) {
 
     MDGUI__meta_box_t new_box;
 
     new_box.fft_first = NULL;
-    new_box.fft_curr = NULL;
     new_box.fft_last = NULL;
-
-    new_box.fft_sample_size = 2048;
 
     MDGUIMB__reset_variables (&new_box);
 
@@ -66,6 +64,7 @@ void MDGUIMB__redraw (MDGUI__meta_box_t *metabox) {
 
     MDGUI__draw_box_opt (&metabox->box, true);
     MDGUIMB__draw_contents (metabox);
+
     MDGUIMB__draw_progress_bar (metabox);
     MDGUIMB__draw_time (metabox);
 }
@@ -178,6 +177,27 @@ void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox) {
     free (sample_rate_string);
 }
 
+void MDGUIMB__erase_fft_data (MDGUI__meta_box_t *metabox) {
+
+    struct MDGUIMB__FFT *fft_curr = metabox->fft_first;
+
+    while (true) {
+        
+        if (!fft_curr) break;
+
+        struct MDGUIMB__FFT *to_delete = fft_curr;
+        fft_curr = fft_curr->next;
+
+        free (to_delete->fft_sample);
+        free (to_delete);
+    }
+
+    metabox->fft_first = NULL;
+    metabox->fft_last = NULL;
+
+    return;
+}
+
 void *MDGUIMB__countdown (void *data) {
 
     MDGUI__meta_box_t *metabox = (MDGUI__meta_box_t *)data;
@@ -196,35 +216,16 @@ void *MDGUIMB__countdown (void *data) {
 
         metabox->curr_sec += 0.05;
 
-        while (metabox->fft_curr->offset_seconds < metabox->curr_sec) {
-
-            if (!metabox->fft_curr) break;
-
-            metabox->fft_curr = metabox->fft_curr->next;
-        }
-
-        float *new_sample = metabox->fft_curr->fft_sample;
-
-        int fft_height = metabox->box.height - 6;
-
-        for (int col = 0; col < 16; col += 2) {
-
-            for (int row = 0; row < fft_height; row++){
-
-                char curr = new_sample[col/2] * (fft_height) >= (fft_height - row) ? '#' : '|';
-
-                mvprintw (metabox->box.y + row + 2, metabox->box.x + (metabox->box.width - 16)/2 + col + 1, "%c", curr);
-            }
-        }
-
-        refresh ();
-
+        MDGUIMB__draw_fft (metabox);
         MDGUIMB__draw_progress_bar (metabox);
         MDGUIMB__draw_time (metabox);
 
         if (metabox->end_signal) {
 
             MDGUIMB__reset_variables (metabox);
+
+            MDGUIMB__erase_fft_data (metabox);
+
             pthread_mutex_unlock (&metabox->mutex);
 
             break;
@@ -313,26 +314,29 @@ void MDGUIMB__unload (MDGUI__meta_box_t *metabox) {
 
     pthread_join (metabox->clock_thread, NULL);
 
-    MDGUIMB__reset_variables (metabox);
-    MDGUIMB__draw (metabox);
+    // MDGUIMB__reset_variables (metabox);
+    // MDGUIMB__draw (metabox);
+}
 
-    metabox->fft_curr = metabox->fft_first;
+void MDGUIMB__draw_fft (MDGUI__meta_box_t *metabox) {
 
-    while (true) {
-        
-        if (!metabox->fft_curr) break;
+    struct MDGUIMB__FFT *fft_curr = metabox->fft_last;
 
-        struct MDGUIMB__FFT *to_delete = metabox->fft_curr;
-        metabox->fft_curr = metabox->fft_curr->next;
+    float *new_sample = fft_curr->fft_sample;
 
-        free (to_delete->fft_sample);
-        free (to_delete);
+    int fft_height = metabox->box.height - 6;
+
+    for (int col = 0; col < 16; col += 2) {
+
+        for (int row = 0; row < fft_height; row++){
+
+            char curr = new_sample[col/2] * (fft_height + 1) >= (fft_height - row) ? '#' : '|';
+
+            mvprintw (metabox->box.y + row + 2, metabox->box.x + (metabox->box.width - 16)/2 + col + 1, "%c", curr);
+        }
     }
 
-    metabox->fft_first = NULL;
-    metabox->fft_curr = NULL;
-    metabox->fft_last = NULL;
-
+    refresh ();
 }
 
 void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {
@@ -344,6 +348,8 @@ void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {
 
 void MDGUIMB__fft_queue (MDGUI__meta_box_t *metabox, float *sample, float seconds) {
 
+    pthread_mutex_lock (&metabox->mutex);
+
     struct MDGUIMB__FFT *new_el = malloc (sizeof(*new_el));
 
     new_el->fft_sample = sample;
@@ -354,11 +360,10 @@ void MDGUIMB__fft_queue (MDGUI__meta_box_t *metabox, float *sample, float second
 
         metabox->fft_first = new_el;
         metabox->fft_last = new_el;
-        metabox->fft_curr = new_el;
     }
     else {
         metabox->fft_last->next = new_el;
         metabox->fft_last = new_el;
-
     }
+    pthread_mutex_unlock (&metabox->mutex);
 }

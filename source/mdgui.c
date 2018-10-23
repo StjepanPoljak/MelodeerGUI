@@ -5,6 +5,8 @@
 #include <melodeer/mdmpg123.h>
 #include <melodeer/mdutils.h>
 
+#define MDGUI_DEBUG
+
 void        MDGUI__wait_for_keypress        (MDGUI__manager_t *mdgui,
                                              bool (key_pressed) (MDGUI__manager_t *mdgui, char [3]),
                                              void (on_completion) (MDGUI__manager_t *mdgui));
@@ -15,10 +17,10 @@ void        MDGUI__start_playing            (MDGUI__manager_t *mdgui);
 bool        MDGUI__stop_all_playing         (MDGUI__manager_t *mdgui);
 void        MDGUI__complete                 (MDGUI__manager_t *mdgui);
 
-void    MDGUIMB__transform              (volatile MD__buffer_chunk_t *curr_chunk,
-                                         unsigned int sample_rate,
-                                         unsigned int channels,
-                                         unsigned int bps, void *user_data);
+void        MDGUIMB__transform              (volatile MD__buffer_chunk_t *curr_chunk,
+                                             unsigned int sample_rate,
+                                             unsigned int channels,
+                                             unsigned int bps, void *user_data);
 
 int MDGUI__get_box_width (MDGUI__manager_t *mdgui) {
 
@@ -307,11 +309,15 @@ void MDGUI__play_complete (void *user_data) {
 
     MDGUI__log ("Done playing!", mdgui->tinfo);
 
+    MDGUIMB__unload (&mdgui->metabox);
+
+    MDGUI__log ("Unloaded metabox.", mdgui->tinfo);
+
     MD__file_t *to_free = mdgui->curr_playing;
     mdgui->curr_playing = NULL;
     free (to_free);
 
-    MDGUIMB__unload (&mdgui->metabox);
+    MDGUI__log ("Freed current MD__file.", mdgui->tinfo);
 
     if (mdgui->current_play_state == MDGUI__PROGRAM_EXIT) {
 
@@ -1134,9 +1140,9 @@ void MDGUIMB__transform (volatile MD__buffer_chunk_t *curr_chunk,
 
         for (int j=0; j<new_count; j++) output[j] = output[j] / new_count;
 
-        float *new_sample = malloc (sizeof (*new_sample) * 8);
+        float *new_sample = malloc (sizeof (*new_sample) * 16);
 
-        MDFFT__to_amp_surj (output, new_count / 2, new_sample, 8);
+        MDFFT__to_amp_surj (output, new_count / 2, new_sample, 16);
 
         for (int j=0; j<8; j++) {
 

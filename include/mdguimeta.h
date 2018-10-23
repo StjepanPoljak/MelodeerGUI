@@ -47,9 +47,7 @@ struct MDGUI__meta_box {
     pthread_mutex_t mutex;
 
     struct MDGUIMB__FFT *fft_first;
-    struct MDGUIMB__FFT *fft_curr;
     struct MDGUIMB__FFT *fft_last;
-    int fft_sample_size;
 };
 
 typedef struct MDGUI__meta_box MDGUI__meta_box_t;
