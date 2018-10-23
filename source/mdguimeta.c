@@ -197,13 +197,26 @@ void *MDGUIMB__countdown (void *data) {
         metabox->curr_sec += 0.05;
 
         while (metabox->fft_curr->offset_seconds < metabox->curr_sec) {
+
             if (!metabox->fft_curr) break;
+
             metabox->fft_curr = metabox->fft_curr->next;
         }
 
         float *new_sample = metabox->fft_curr->fft_sample;
 
-        mvprintw (0,0,"%02.2f - %02.2f - %02.2f - %02.2f - %02.2f - %02.2f - %02.2f - %02.2f", new_sample[0], new_sample[1], new_sample[2], new_sample[3], new_sample[4], new_sample[5], new_sample[6], new_sample[7]);
+        int fft_height = metabox->box.height - 6;
+
+        for (int col = 0; col < 16; col += 2) {
+
+            for (int row = 0; row < fft_height; row++){
+
+                char curr = new_sample[col/2] * (fft_height) >= (fft_height - row) ? '#' : '|';
+
+                mvprintw (metabox->box.y + row + 2, metabox->box.x + (metabox->box.width - 16)/2 + col + 1, "%c", curr);
+            }
+        }
+
         refresh ();
 
         MDGUIMB__draw_progress_bar (metabox);
@@ -302,6 +315,24 @@ void MDGUIMB__unload (MDGUI__meta_box_t *metabox) {
 
     MDGUIMB__reset_variables (metabox);
     MDGUIMB__draw (metabox);
+
+    metabox->fft_curr = metabox->fft_first;
+
+    while (true) {
+        
+        if (!metabox->fft_curr) break;
+
+        struct MDGUIMB__FFT *to_delete = metabox->fft_curr;
+        metabox->fft_curr = metabox->fft_curr->next;
+
+        free (to_delete->fft_sample);
+        free (to_delete);
+    }
+
+    metabox->fft_first = NULL;
+    metabox->fft_curr = NULL;
+    metabox->fft_last = NULL;
+
 }
 
 void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {

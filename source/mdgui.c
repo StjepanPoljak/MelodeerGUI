@@ -1134,9 +1134,16 @@ void MDGUIMB__transform (volatile MD__buffer_chunk_t *curr_chunk,
 
         for (int j=0; j<new_count; j++) output[j] = output[j] / new_count;
 
-        float *new_sample = malloc (sizeof (*new_sample) * 16);
+        float *new_sample = malloc (sizeof (*new_sample) * 8);
 
-        MDFFT__to_amp_surj (output, new_count / 2, new_sample, 16);
+        MDFFT__to_amp_surj (output, new_count / 2, new_sample, 8);
+
+        for (int j=0; j<8; j++) {
+
+            float new_j = log(new_sample[j]*10000);
+
+            new_sample[j] = new_j < 0 ? 0 : new_j / 6;
+        };
 
         float secs = ((((float)curr_chunk->order) + i * 1/2) * curr_chunk->size / (bps * channels / 8)) / sample_rate;
 
