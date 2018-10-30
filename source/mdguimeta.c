@@ -310,15 +310,23 @@ void MDGUIMB__unload (MDGUI__meta_box_t *metabox) {
 
     pthread_mutex_lock (&metabox->mutex);
     metabox->end_signal = true;
+
+    if (metabox->pause) metabox->pause = false;
+
     pthread_mutex_unlock (&metabox->mutex);
 
     pthread_join (metabox->clock_thread, NULL);
 
-    // MDGUIMB__reset_variables (metabox);
-    // MDGUIMB__draw (metabox);
+    MDGUIMB__reset_variables (metabox);
+    
+    MDGUI__draw_box_opt (&metabox->box, true);
+
+    MDGUIMB__draw (metabox);
 }
 
 void MDGUIMB__draw_fft (MDGUI__meta_box_t *metabox) {
+
+    if (metabox->box.width < 21) return;
 
     struct MDGUIMB__FFT *fft_curr = metabox->fft_last;
 
