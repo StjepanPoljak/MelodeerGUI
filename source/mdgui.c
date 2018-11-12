@@ -1208,23 +1208,25 @@ void MDGUIMB__transform (volatile MD__buffer_chunk_t *curr_chunk,
 
     int new_count = count / 2;
 
+    float coeff = 100000 / new_count;
+
     for (int i=0; i<2; i++) {
 
         MDFFT__apply_hanning (&(buffer[new_count*i]), new_count);
 
         MDFFT__iterative (false, &(buffer[new_count*i]), output, new_count);
 
-        for (int j=0; j<new_count; j++) output[j] = output[j] / new_count;
+        //for (int j=0; j<new_count; j++) output[j] = output[j] / new_count;
 
-        float *new_sample = malloc (sizeof (*new_sample) * 16);
+        float *new_sample = malloc (sizeof (*new_sample) * 8);
 
-        MDFFT__to_amp_surj (output, new_count / 2, new_sample, 16);
+        MDFFT__to_amp_surj (output, new_count / 2, new_sample, 8);
 
         for (int j=0; j<8; j++) {
 
-            float new_j = log(new_sample[j]*10000);
-
-            new_sample[j] = new_j < 0 ? 0 : new_j / 6;
+            float new_j = log10f(coeff * new_sample[j]);
+            // try 0.5 + (cos(2 * 3.14 * (new_j / 4) + 3.14)/4)
+            new_sample[j] = new_j < 0 ? 0 : new_j / 4;
         };
 
         float secs = ((((float)curr_chunk->order) + i * 1/2) * curr_chunk->size / (bps * channels / 8)) / sample_rate;
