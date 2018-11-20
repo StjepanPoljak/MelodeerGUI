@@ -408,6 +408,21 @@ void MDGUI__started_playing (void *user_data) {
     return;
 }
 
+void MDGUI__buff_underrun (void *user_data) {
+
+    static unsigned int num_underrun = 0;
+
+    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
+
+    if (num_underrun > 5) {
+
+        num_underrun = 0;
+
+        MDAL__buff_resize (mdgui->curr_playing, NULL);
+    }
+    else num_underrun++;
+}
+
 void *MDGUI__play (void *data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
@@ -452,7 +467,7 @@ void *MDGUI__play (void *data) {
         MDGUI__mutex_unlock (mdgui);
 
         if (!MD__play_raw_with_decoder (current_file, MD__handle_metadata, MDGUI__started_playing,
-                                        MDGUI__handle_error, NULL, MDGUI__play_complete)) {
+                                        MDGUI__handle_error, MDGUI__buff_underrun, MDGUI__play_complete)) {
 
             MDGUI__mutex_lock (mdgui);
 
@@ -1173,7 +1188,6 @@ void MDGUI__deinit (MDGUI__manager_t *mdgui) {
     MDGUIFB__deinit (&mdgui->filebox);
 }
 
-
 void MDGUIMB__transform (volatile MD__buffer_chunk_t *curr_chunk,
                          unsigned int sample_rate,
                          unsigned int channels,
@@ -1216,8 +1230,6 @@ void MDGUIMB__transform (volatile MD__buffer_chunk_t *curr_chunk,
 
         MDFFT__iterative (false, &(buffer[new_count*i]), output, new_count);
 
-        //for (int j=0; j<new_count; j++) output[j] = output[j] / new_count;
-
         float *new_sample = malloc (sizeof (*new_sample) * 8);
 
         MDFFT__to_amp_surj (output, new_count / 2, new_sample, 8);
@@ -1233,8 +1245,4 @@ void MDGUIMB__transform (volatile MD__buffer_chunk_t *curr_chunk,
 
         MDGUIMB__fft_queue (&mdgui->metabox, new_sample, secs);
     }
-        //     for (int b=0; b<bps/8; b++)
-        //
-        //         curr_chunk->chunk[i*channels*(bps/8)+(c*channels)+b] = data >> 8*b;
-        // }
 }
