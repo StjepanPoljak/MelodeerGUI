@@ -1,2 +1,3 @@
 # MelodeerGUI
-Linux terminal GUI for Melodeer API. In order to build and/or run, Melodeer shared library is required. The work is still in its initial phases, but has basic functionality. I apologize for the messy code; the whole idea of GUI application for my Melodeer project was developed on-the-go, without much prior planning. I hope to refactor it soon or upload a much better structured C++ source code.
+Linux terminal GUI for Melodeer API. In order to build and/or run, 
+Melodeer shared library is required.
