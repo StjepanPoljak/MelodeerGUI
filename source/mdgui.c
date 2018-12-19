@@ -410,17 +410,19 @@ void MDGUI__started_playing (void *user_data) {
 
 void MDGUI__buff_underrun (void *user_data) {
 
-    static unsigned int num_underrun = 0;
+    // this is a logical mistake, plus I have to see if this kind of thing is supported in OpenAL at all
 
-    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
+    // static unsigned int num_underrun = 0;
 
-    if (num_underrun > 5) {
+    // MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
-        num_underrun = 0;
+    // if (num_underrun > 5) {
 
-        MDAL__buff_resize (mdgui->curr_playing, NULL);
-    }
-    else num_underrun++;
+    //     num_underrun = 0;
+
+    //     MDAL__buff_resize (mdgui->curr_playing, NULL);
+    // }
+    // else num_underrun++;
 }
 
 void *MDGUI__play (void *data) {
