@@ -748,34 +748,26 @@ bool MDGUI__return_event (void *data) {
 
         case MDGUI__FILEBOX:
 
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__select_box (&mdgui->filebox.listbox.box);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
             
             break;
 
         case MDGUI__PLAYLIST:
 
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__select_box (&mdgui->playlistbox.listbox.box);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
         case MDGUI__METABOX:
         
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__select_box (&mdgui->metabox.box);
             MDGUIMB__draw (&mdgui->metabox);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
         case MDGUI__LOGO:
        
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__draw_logo (mdgui);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
@@ -881,39 +873,31 @@ bool MDGUI__down_event (void *data) {
 
             mdgui->potential_component = MDGUI__METABOX;
 
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__draw_logo (mdgui);
             MDGUI__highlight_box (&mdgui->metabox.box);
             MDGUIMB__draw (&mdgui->metabox);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
         }
         else if (mdgui->potential_component == MDGUI__NONE) {
 
             mdgui->potential_component = MDGUI__METABOX;
 
-            pthread_mutex_lock (&mdgui->metabox.mutex);            
             MDGUI__highlight_box (&mdgui->metabox.box);
             MDGUIMB__draw (&mdgui->metabox);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
         }
 
         break;
 
     case MDGUI__FILEBOX:
 
-        pthread_mutex_lock (&mdgui->metabox.mutex);
         MDGUILB__down_arrow (&mdgui->filebox.listbox);
         MDGUIFB__redraw (&mdgui->filebox);
-        pthread_mutex_unlock (&mdgui->metabox.mutex);
 
         break;
 
     case MDGUI__PLAYLIST:
 
-        pthread_mutex_lock (&mdgui->metabox.mutex);
         MDGUILB__down_arrow (&mdgui->playlistbox.listbox);
         MDGUIPB__redraw (&mdgui->playlistbox);
-        pthread_mutex_unlock (&mdgui->metabox.mutex);
 
         break;
 
@@ -936,39 +920,32 @@ bool MDGUI__up_event (void *data) {
         if (mdgui->potential_component == MDGUI__METABOX) {
 
             mdgui->potential_component = MDGUI__LOGO;
-            pthread_mutex_lock (&mdgui->metabox.mutex);
+
             MDGUI__draw_logo (mdgui);
             MDGUI__unhighlight_box (&mdgui->metabox.box);
             MDGUIMB__draw (&mdgui->metabox);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
         }
 
         else if (mdgui->potential_component == MDGUI__NONE) {
 
             mdgui->potential_component = MDGUI__LOGO;
 
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__draw_logo (mdgui);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
         }
 
         break;
 
     case MDGUI__FILEBOX:
 
-        pthread_mutex_lock (&mdgui->metabox.mutex);
         MDGUILB__up_arrow (&mdgui->filebox.listbox);
         MDGUIFB__redraw (&mdgui->filebox);
-        pthread_mutex_unlock (&mdgui->metabox.mutex);
         
         break;
 
     case MDGUI__PLAYLIST:
 
-        pthread_mutex_lock (&mdgui->metabox.mutex);
         MDGUILB__up_arrow (&mdgui->playlistbox.listbox);
         MDGUIPB__redraw (&mdgui->playlistbox);
-        pthread_mutex_unlock (&mdgui->metabox.mutex);
 
         break;
 
@@ -994,9 +971,7 @@ bool MDGUI__left_event (void *data) {
 
             mdgui->potential_component = MDGUI__FILEBOX;
 
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__highlight_box (&mdgui->filebox.listbox.box);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
@@ -1004,10 +979,8 @@ bool MDGUI__left_event (void *data) {
 
             mdgui->potential_component = MDGUI__FILEBOX;
 
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__draw_logo (mdgui);
             MDGUI__highlight_box (&mdgui->filebox.listbox.box);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
@@ -1015,11 +988,9 @@ bool MDGUI__left_event (void *data) {
 
             mdgui->potential_component = MDGUI__FILEBOX;
        
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__unhighlight_box (&mdgui->metabox.box);
             MDGUIMB__draw (&mdgui->metabox);
             MDGUI__highlight_box (&mdgui->filebox.listbox.box);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
@@ -1027,11 +998,9 @@ bool MDGUI__left_event (void *data) {
 
             mdgui->potential_component = MDGUI__METABOX;
         
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__unhighlight_box (&mdgui->playlistbox.listbox.box);
             MDGUI__highlight_box (&mdgui->metabox.box);
             MDGUIMB__draw (&mdgui->metabox);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
@@ -1064,9 +1033,7 @@ bool MDGUI__right_event (void *data) {
 
             mdgui->potential_component = MDGUI__PLAYLIST;
 
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__highlight_box (&mdgui->playlistbox.listbox.box);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
@@ -1074,11 +1041,9 @@ bool MDGUI__right_event (void *data) {
 
             mdgui->potential_component = MDGUI__METABOX;
      
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__unhighlight_box (&mdgui->filebox.listbox.box);
             MDGUI__highlight_box (&mdgui->metabox.box);
             MDGUIMB__draw (&mdgui->metabox);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
@@ -1086,10 +1051,8 @@ bool MDGUI__right_event (void *data) {
 
             mdgui->potential_component = MDGUI__PLAYLIST;
 
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__draw_logo (mdgui);
             MDGUI__highlight_box (&mdgui->playlistbox.listbox.box);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
@@ -1097,11 +1060,9 @@ bool MDGUI__right_event (void *data) {
 
             mdgui->potential_component = MDGUI__PLAYLIST;
             
-            pthread_mutex_lock (&mdgui->metabox.mutex);
             MDGUI__unhighlight_box (&mdgui->metabox.box);
             MDGUIMB__draw (&mdgui->metabox);
             MDGUI__highlight_box (&mdgui->playlistbox.listbox.box);
-            pthread_mutex_unlock (&mdgui->metabox.mutex);
 
             break;
 
