@@ -26,31 +26,43 @@ typedef struct  MDGUI__terminal MDGUI__terminal;
 
 enum            MDGUI__component {
 
-                        MDGUI__NONE,
-                        MDGUI__FILEBOX,
-                        MDGUI__METABOX,
-                        MDGUI__PLAYLIST,
-                        MDGUI__LOGO,
+                    MDGUI__NONE,
+                    MDGUI__FILEBOX,
+                    MDGUI__METABOX,
+                    MDGUI__PLAYLIST,
+                    MDGUI__LOGO,
 
-                        MDGUI__META_ALERT
+                    MDGUI__META_ALERT
                 };
 
 typedef enum MDGUI__component MDGUI__component;
 
 enum            MDGUI__play_state {
 
-                        MDGUI__NOT_PLAYING,
-                        MDGUI__PAUSE,
-                        MDGUI__PLAYING,
-                        MDGUI__WAITING_TO_STOP,
-                        MDGUI__INITIALIZING,
-                        MDGUI__PROGRAM_EXIT,
-                        MDGUI__READY_TO_EXIT
+                    MDGUI__NOT_PLAYING,
+                    MDGUI__PAUSE,
+                    MDGUI__PLAYING,
+                    MDGUI__WAITING_TO_STOP,
+                    MDGUI__INITIALIZING,
+                    MDGUI__PROGRAM_EXIT,
+                    MDGUI__READY_TO_EXIT
                 };
 
 typedef enum    MDGUI__play_state MDGUI__play_state;
 
+struct MDGUI__event {
+    bool (*event) (void *data);
+    void *data;
+};
+
+typedef struct MDGUI__event MDGUI__event_t;
+
 struct MDGUI__manager {
+
+    MDGUI__event_t **event_queue;
+    int event_queue_last;
+    int event_queue_size;
+    pthread_mutex_t event_mutex;
 
     MD__file_t *curr_playing;
 
@@ -61,8 +73,9 @@ struct MDGUI__manager {
     MDGUI__component previous_potential_component;
 
     pthread_t melodeer_thread;
-
     pthread_t terminal_thread;
+    pthread_t keyboard_input_thread;
+    pthread_t clock_thread;
 
     pthread_mutex_t mutex;
 
@@ -73,6 +86,8 @@ struct MDGUI__manager {
     char *playlist_dir;
 
     MDGUI__play_state volatile current_play_state;
+
+    // related to window positions and padding
 
     int top;
     int bottom;

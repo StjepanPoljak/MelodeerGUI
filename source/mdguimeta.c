@@ -214,11 +214,11 @@ void *MDGUIMB__countdown (void *data) {
             continue;
         }
 
-        metabox->curr_sec += 0.05;
+        // metabox->curr_sec += 0.05;
 
         MDGUIMB__draw_fft (metabox);
         MDGUIMB__draw_progress_bar (metabox);
-        MDGUIMB__draw_time (metabox);
+        // MDGUIMB__draw_time (metabox);
 
         if (metabox->end_signal) {
 
