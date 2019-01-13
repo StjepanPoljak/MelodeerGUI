@@ -225,7 +225,6 @@ void MDGUIMB__load (MDGUI__meta_box_t *metabox, MD__metadata_t metadata) {
 
     MDGUIMB__reset_variables (metabox);
 
-    metabox->metadata_present = true;
     metabox->metadata = metadata;
 
     metabox->total_seconds  = (float)metabox->metadata.total_samples / (float)metabox->metadata.sample_rate;
@@ -233,6 +232,8 @@ void MDGUIMB__load (MDGUI__meta_box_t *metabox, MD__metadata_t metadata) {
     metabox->hours          = (int)(metabox->total_seconds / 3600);
     metabox->minutes        = (int)((metabox->total_seconds / 60) - (float)(metabox->hours * 60));
     metabox->seconds        = (int)(metabox->total_seconds - (float)(60 * metabox->minutes));
+
+    metabox->metadata_present = true;
 
     MDGUIMB__redraw (metabox);
 }
@@ -266,6 +267,8 @@ void MDGUIMB__unload (MDGUI__meta_box_t *metabox) {
 void MDGUIMB__draw_fft (MDGUI__meta_box_t *metabox) {
 
     if (metabox->box.width < 21) return;
+
+    if (!metabox->fft_last) return;
 
     struct MDGUIMB__FFT *fft_curr = metabox->fft_last;
 

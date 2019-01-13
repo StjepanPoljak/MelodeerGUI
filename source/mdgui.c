@@ -7,6 +7,8 @@
 #include <melodeer/mdmpg123.h>
 #include <melodeer/mdutils.h>
 
+#define MDGUI_DEBUG
+
 void        *MDGUI__wait_for_keypress       (void *data);
 bool        key_pressed                     (MDGUI__manager_t *mdgui, char key[3]);
 void        *terminal_change                (void *data);
@@ -128,12 +130,12 @@ bool MDGUI__start (MDGUI__manager_t *mdgui) {
 
     while (true) {
 
-        MDGUI__mutex_lock (mdgui);
-
         gettimeofday (&timecheck, NULL);
         start = (double)timecheck.tv_sec + (double)timecheck.tv_usec / 1e6;
 
         usleep (REFRESH_RATE);
+
+        MDGUI__mutex_lock (mdgui);
 
         if (!MDGUI__exec_last_event (mdgui)) {
 
@@ -262,7 +264,9 @@ void MDGUI__add_event (MDGUI__manager_t *mdgui, bool (*new_f)(void *), void *dat
     if (mdgui->event_queue_last >= mdgui->event_queue_size) {
         mdgui->event_queue_size = mdgui->event_queue_size == 0 ? 1 : mdgui->event_queue_size * 2;
 
-        mdgui->event_queue = malloc(sizeof(*mdgui->event_queue) * mdgui->event_queue_size);
+        if (mdgui->event_queue) mdgui->event_queue = realloc (mdgui->event_queue, sizeof (*mdgui->event_queue) * mdgui->event_queue_size);
+
+        else mdgui->event_queue = malloc (sizeof (*mdgui->event_queue) * mdgui->event_queue_size);
     }
 
     if (old_queue != NULL) {
@@ -274,7 +278,7 @@ void MDGUI__add_event (MDGUI__manager_t *mdgui, bool (*new_f)(void *), void *dat
         free (old_queue);
     }
 
-    MDGUI__event_t *new_event = malloc(sizeof(*new_event));
+    MDGUI__event_t *new_event = malloc (sizeof (*new_event));
     new_event->event = new_f;
     new_event->data = data;
 
@@ -290,6 +294,8 @@ bool MDGUI__exec_last_event (MDGUI__manager_t *mdgui) {
     if (mdgui->event_queue_last >= 0) {
 
         return_value = mdgui->event_queue[mdgui->event_queue_last]->event(mdgui->event_queue[mdgui->event_queue_last]->data);
+        MDGUI__event_t *to_delete = mdgui->event_queue[mdgui->event_queue_last];
+        free(to_delete);
         mdgui->event_queue_last--;
     }
 
@@ -406,6 +412,8 @@ void *MDGUI__wait_for_keypress (void *data) {
 
     for(;;) {
 
+        usleep(REFRESH_RATE);
+
         MDGUI__mutex_lock (mdgui);
 
         if (mdgui->current_play_state == MDGUI__PROGRAM_EXIT) {
@@ -482,6 +490,15 @@ void MD__handle_metadata (MD__metadata_t metadata, void *user_data) {
     return;
 }
 
+bool MDGUI__redraw_playlist_event (void *data) {
+
+    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
+
+    MDGUIPB__redraw (&mdgui->playlistbox);
+
+    return true;
+}
+
 void MDGUI__play_complete (void *user_data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
@@ -524,16 +541,16 @@ void MDGUI__play_complete (void *user_data) {
 
         mdgui->playlistbox.num_playing = -1;
 
-        MDGUIPB__redraw (&mdgui->playlistbox);
-
         mdgui->current_play_state = MDGUI__NOT_PLAYING;
 
         MDGUI__mutex_unlock (mdgui);
 
+        MDGUI__add_event (mdgui, MDGUI__redraw_playlist_event, user_data);
+
         return;
     }
 
-    MDGUIPB__redraw (&mdgui->playlistbox);
+    // MDGUIPB__redraw (&mdgui->playlistbox);
 
     if (mdgui->stop_all_signal) {
 
@@ -551,6 +568,8 @@ void MDGUI__play_complete (void *user_data) {
     MDGUI__log ("Starting to play again.", mdgui);
 
     MDGUI__mutex_unlock (mdgui);
+
+    MDGUI__add_event (mdgui, MDGUI__redraw_playlist_event, user_data);
 
     MDGUI__start_playing (user_data);
 
@@ -691,7 +710,9 @@ bool filebox_or_playlist_return (MDGUI__manager_t *mdgui) {
 
         MDGUI__log ("Waiting to stop.", mdgui);
 
-        MD__stop (mdgui->curr_playing);
+        if (mdgui->curr_playing) MD__stop_raw (mdgui->curr_playing);
+
+        else mdgui->current_play_state = MDGUI__NOT_PLAYING;
 
         MDGUI__log ("Stop signal sent.", mdgui);
     }
@@ -766,6 +787,8 @@ bool MDGUI__exit_event (void *data) {
 bool MDGUI__return_event (void *data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
+
+    MDGUI__log ("Got return event.", mdgui);
 
     switch (mdgui->selected_component) {
 
@@ -1106,14 +1129,12 @@ bool MDGUI__pause_event (void *data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
-    MDGUI__mutex_lock (mdgui);
-
     if (mdgui->current_play_state == MDGUI__PLAYING
      || mdgui->current_play_state == MDGUI__PAUSE) {
 
-        MD__toggle_pause (mdgui->curr_playing);
+        MD__toggle_pause_raw (mdgui->curr_playing);
 
-        mdgui->current_play_state = MD__is_paused (mdgui->curr_playing)
+        mdgui->current_play_state = mdgui->curr_playing->MD__pause_playing
                                   ? MDGUI__PAUSE
                                   : MDGUI__PLAYING;
 
@@ -1126,8 +1147,6 @@ bool MDGUI__pause_event (void *data) {
 
     }
 
-    MDGUI__mutex_unlock (mdgui);
-
     return true;
 }
 
@@ -1135,11 +1154,7 @@ bool MDGUI__stop_event (void *data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
-    MDGUI__mutex_lock (mdgui);
-
     mdgui->playlistbox.num_playing = -1;
-
-    MDGUI__mutex_unlock (mdgui);
 
     bool stop = MDGUI__stop_all_playing (mdgui);
 
@@ -1230,7 +1245,7 @@ bool MDGUI__stop_all_playing (MDGUI__manager_t *mdgui) {
 
         MDGUI__log ("Waiting to stop.", mdgui);
 
-        MD__stop (mdgui->curr_playing);
+        MD__stop_raw (mdgui->curr_playing);
 
         MDGUI__log ("Stop signal sent.", mdgui);
 
@@ -1360,9 +1375,9 @@ void MDGUI__complete (MDGUI__manager_t *mdgui) {
 
         mdgui->current_play_state = MDGUI__PROGRAM_EXIT;
 
-        MD__stop (mdgui->curr_playing);
-
         MDGUI__mutex_unlock (mdgui);
+
+        MD__stop (mdgui->curr_playing);
 
         for (;;) {
             MDGUI__mutex_lock (mdgui);
@@ -1449,6 +1464,7 @@ void MDGUIMB__transform (volatile MD__buffer_chunk_t *curr_chunk,
 
         float secs = ((((float)curr_chunk->order) + i * 1/2) * curr_chunk->size / (bps * channels / 8)) / sample_rate;
 
+        // atomicity will be ensured by the thread calling buffer_transform
         MDGUIMB__fft_queue (&mdgui->metabox, new_sample, secs);
     }
 }
