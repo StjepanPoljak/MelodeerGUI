@@ -5,12 +5,6 @@
 
 #include "mdguistrarr.h"
 
-void    MDGUIMB__draw_contents      (MDGUI__meta_box_t *metabox);
-void    MDGUIMB__draw_progress_bar  (MDGUI__meta_box_t *metabox);
-void    MDGUIMB__reset_variables    (MDGUI__meta_box_t *metabox);
-void    MDGUIMB__draw_time          (MDGUI__meta_box_t *metabox);
-void    MDGUIMB__draw_fft           (MDGUI__meta_box_t *metabox);
-
 MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int width) {
 
     MDGUI__meta_box_t new_box;
@@ -19,8 +13,6 @@ MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int wid
     new_box.fft_last = NULL;
 
     MDGUIMB__reset_variables (&new_box);
-
-    pthread_mutex_init (&new_box.mutex, NULL);
 
     new_box.box = MDGUI__box_create (name, x, y, height, width);
 
@@ -198,53 +190,9 @@ void MDGUIMB__erase_fft_data (MDGUI__meta_box_t *metabox) {
     return;
 }
 
-void *MDGUIMB__countdown (void *data) {
-
-    MDGUI__meta_box_t *metabox = (MDGUI__meta_box_t *)data;
-
-    while (true) {
-
-        usleep (50000);
-
-        pthread_mutex_lock (&metabox->mutex);
-
-        if (metabox->pause) {
-
-            pthread_mutex_unlock (&metabox->mutex);
-            continue;
-        }
-
-        // metabox->curr_sec += 0.05;
-
-        MDGUIMB__draw_fft (metabox);
-        MDGUIMB__draw_progress_bar (metabox);
-        // MDGUIMB__draw_time (metabox);
-
-        if (metabox->end_signal) {
-
-            MDGUIMB__reset_variables (metabox);
-
-            MDGUIMB__erase_fft_data (metabox);
-
-            pthread_mutex_unlock (&metabox->mutex);
-
-            break;
-        }
-
-        pthread_mutex_unlock (&metabox->mutex);
-    }
-
-    return NULL;
-}
-
 void MDGUIMB__start_countdown (MDGUI__meta_box_t *metabox) {
 
     metabox->curr_sec = 0;
-
-    if (pthread_create (&metabox->clock_thread, NULL, MDGUIMB__countdown, metabox)){
-
-        return;
-    }
 }
 
 void MDGUIMB__draw_progress_bar (MDGUI__meta_box_t *metabox) {
@@ -292,30 +240,21 @@ void MDGUIMB__load (MDGUI__meta_box_t *metabox, MD__metadata_t metadata) {
 
 void MDGUIMB__unset_pause (MDGUI__meta_box_t *metabox) {
 
-    pthread_mutex_lock (&metabox->mutex);
     metabox->pause = false;
-    pthread_mutex_unlock (&metabox->mutex);
 }
 
 
 void MDGUIMB__set_pause (MDGUI__meta_box_t *metabox) {
 
-    pthread_mutex_lock (&metabox->mutex);
     metabox->pause = true;
-    pthread_mutex_unlock (&metabox->mutex);
 }
 
 
 void MDGUIMB__unload (MDGUI__meta_box_t *metabox) {
 
-    pthread_mutex_lock (&metabox->mutex);
     metabox->end_signal = true;
 
     if (metabox->pause) metabox->pause = false;
-
-    pthread_mutex_unlock (&metabox->mutex);
-
-    pthread_join (metabox->clock_thread, NULL);
 
     MDGUIMB__reset_variables (metabox);
     
@@ -349,16 +288,12 @@ void MDGUIMB__draw_fft (MDGUI__meta_box_t *metabox) {
 
 void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {
 
-    pthread_mutex_destroy (&metabox->mutex);
-
     MDGUI__box_deinit (&metabox->box);
 }
 
 void MDGUIMB__fft_queue (MDGUI__meta_box_t *metabox, float *sample, float seconds) {
 
-    pthread_mutex_lock (&metabox->mutex);
-
-    struct MDGUIMB__FFT *new_el = malloc (sizeof(*new_el));
+    struct MDGUIMB__FFT *new_el = malloc (sizeof (*new_el));
 
     new_el->fft_sample = sample;
     new_el->offset_seconds = seconds;
@@ -373,5 +308,4 @@ void MDGUIMB__fft_queue (MDGUI__meta_box_t *metabox, float *sample, float second
         metabox->fft_last->next = new_el;
         metabox->fft_last = new_el;
     }
-    pthread_mutex_unlock (&metabox->mutex);
 }

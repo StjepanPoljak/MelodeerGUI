@@ -16,6 +16,10 @@
 #include "mdguimeta.h"
 #include "mdguiplaylist.h"
 
+#ifndef REFRESH_RATE
+#define REFRESH_RATE 50000
+#endif
+
 struct MDGUI__terminal {
 
     int cols;
@@ -62,7 +66,6 @@ struct MDGUI__manager {
     MDGUI__event_t **event_queue;
     int event_queue_last;
     int event_queue_size;
-    pthread_mutex_t event_mutex;
 
     MD__file_t *curr_playing;
 
@@ -78,6 +81,7 @@ struct MDGUI__manager {
     pthread_t clock_thread;
 
     pthread_mutex_t mutex;
+    pthread_mutexattr_t mutex_attributes;
 
     MDGUI__file_box_t filebox;
     MDGUI__playlist_box_t playlistbox;
@@ -105,7 +109,7 @@ bool            MDGUI__init                     (MDGUI__manager_t *mdgui);
 
 bool            MDGUI__start                    (MDGUI__manager_t *mdgui);
 
-void            MDGUI__log                      (const char *log, MDGUI__terminal tinfo);
+void            MDGUI__log                      (const char *log, MDGUI__manager_t *mdgui);
 
 void            MDGUI__draw                     (MDGUI__manager_t *mdgui);
 

@@ -43,9 +43,6 @@ struct MDGUI__meta_box {
 
     bool resized;
 
-    pthread_t clock_thread;
-    pthread_mutex_t mutex;
-
     struct MDGUIMB__FFT *fft_first;
     struct MDGUIMB__FFT *fft_last;
 };
@@ -60,6 +57,16 @@ void    MDGUIMB__draw                   (MDGUI__meta_box_t *metabox);
 
 void    MDGUIMB__redraw                 (MDGUI__meta_box_t *metabox);
 
+void    MDGUIMB__draw_contents          (MDGUI__meta_box_t *metabox);
+
+void    MDGUIMB__draw_progress_bar      (MDGUI__meta_box_t *metabox);
+
+void    MDGUIMB__reset_variables        (MDGUI__meta_box_t *metabox);
+
+void    MDGUIMB__draw_time              (MDGUI__meta_box_t *metabox);
+
+void    MDGUIMB__draw_fft               (MDGUI__meta_box_t *metabox);
+
 void    MDGUIMB__unload                 (MDGUI__meta_box_t *metabox);
 
 void    MDGUIMB__start_countdown        (MDGUI__meta_box_t *metabox);
@@ -68,7 +75,9 @@ void    MDGUIMB__set_pause              (MDGUI__meta_box_t *metabox);
 
 void    MDGUIMB__unset_pause            (MDGUI__meta_box_t *metabox);
 
-void    MDGUIMB__fft_queue               (MDGUI__meta_box_t *metabox, float *sample, float seconds);
+void    MDGUIMB__fft_queue              (MDGUI__meta_box_t *metabox, float *sample, float seconds);
+
+void    MDGUIMB__erase_fft_data         (MDGUI__meta_box_t *metabox);
 
 void    MDGUIMB__deinit                 (MDGUI__meta_box_t *metabox);
 
