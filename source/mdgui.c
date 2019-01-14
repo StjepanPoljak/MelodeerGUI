@@ -7,8 +7,6 @@
 #include <melodeer/mdmpg123.h>
 #include <melodeer/mdutils.h>
 
-#define MDGUI_DEBUG
-
 void        *MDGUI__wait_for_keypress       (void *data);
 bool        key_pressed                     (MDGUI__manager_t *mdgui, char key[3]);
 void        *terminal_change                (void *data);
@@ -42,6 +40,8 @@ int MDGUI__get_box_x (MDGUI__manager_t *mdgui, int order) {
 }
 
 bool MDGUI__init (MDGUI__manager_t *mdgui) {
+
+    mdgui->refresh_rate = 50000;
 
     mdgui->top = 2;
     mdgui->bottom = 3;
