@@ -133,7 +133,7 @@ bool MDGUI__start (MDGUI__manager_t *mdgui) {
         gettimeofday (&timecheck, NULL);
         start = (double)timecheck.tv_sec + (double)timecheck.tv_usec / 1e6;
 
-        usleep (REFRESH_RATE);
+        usleep (mdgui->refresh_rate);
 
         MDGUI__mutex_lock (mdgui);
 
@@ -157,12 +157,15 @@ bool MDGUI__start (MDGUI__manager_t *mdgui) {
                 MDGUIMB__draw_fft (&mdgui->metabox);
                 MDGUIMB__draw_progress_bar (&mdgui->metabox);
 
+                refresh ();
+
                 gettimeofday (&timecheck, NULL);
                 end = (double)timecheck.tv_sec + (double)timecheck.tv_usec / 1e6;
 
                 mdgui->metabox.curr_sec += end - start;    
             }
         }
+        else refresh ();
 
         MDGUI__mutex_unlock (mdgui);
     }
@@ -191,6 +194,11 @@ bool MDGUI__start (MDGUI__manager_t *mdgui) {
     endwin();
 
     return true;
+}
+
+void MDGUI__set_refresh_rate (MDGUI__manager_t *mdgui, int refresh_rate) {
+
+    mdgui->refresh_rate = refresh_rate;
 }
 
 void MDGUI__draw_logo (MDGUI__manager_t *mdgui) {
@@ -233,8 +241,6 @@ void MDGUI__draw_logo (MDGUI__manager_t *mdgui) {
     }
 
     if (mdgui->potential_component == MDGUI__LOGO) attroff (A_BOLD);
-
-    refresh ();
 }
 
 void MDGUI__init_event_queue (MDGUI__manager_t *mdgui) {
@@ -244,9 +250,7 @@ void MDGUI__init_event_queue (MDGUI__manager_t *mdgui) {
     mdgui->event_queue_size = 0;
 }
 
-void MDGUI__add_event (MDGUI__manager_t *mdgui, bool (*new_f)(void *), void *data){
-
-    MDGUI__mutex_lock (mdgui);
+void MDGUI__add_event_raw (MDGUI__manager_t *mdgui, bool (*new_f)(void *), void *data) {
 
     MDGUI__event_t **old_queue = NULL;
 
@@ -283,7 +287,12 @@ void MDGUI__add_event (MDGUI__manager_t *mdgui, bool (*new_f)(void *), void *dat
     new_event->data = data;
 
     mdgui->event_queue[mdgui->event_queue_last] = new_event;
+}
 
+void MDGUI__add_event (MDGUI__manager_t *mdgui, bool (*new_f)(void *), void *data) {
+
+    MDGUI__mutex_lock (mdgui);
+    MDGUI__add_event_raw (mdgui, new_f, data);
     MDGUI__mutex_unlock (mdgui);
 }
 
@@ -295,7 +304,9 @@ bool MDGUI__exec_last_event (MDGUI__manager_t *mdgui) {
 
         return_value = mdgui->event_queue[mdgui->event_queue_last]->event(mdgui->event_queue[mdgui->event_queue_last]->data);
         MDGUI__event_t *to_delete = mdgui->event_queue[mdgui->event_queue_last];
+        
         free(to_delete);
+        
         mdgui->event_queue_last--;
     }
 
@@ -336,8 +347,6 @@ void MDGUI__log (const char *log, MDGUI__manager_t *mdgui) {
 
         i++;
     }
-
-    refresh ();
 
     #ifdef MDGUI_DEBUG
 
@@ -412,7 +421,7 @@ void *MDGUI__wait_for_keypress (void *data) {
 
     for(;;) {
 
-        usleep(REFRESH_RATE);
+        usleep(mdgui->refresh_rate);
 
         MDGUI__mutex_lock (mdgui);
 
@@ -1308,11 +1317,9 @@ void *terminal_change (void *data) {
 
     MDGUI__terminal previous_tinfo = mdgui->tinfo;
 
-    struct timespec tsp = {0, 10000};
-
     while (true) {
 
-        nanosleep(&tsp, NULL);
+        usleep(mdgui->refresh_rate);
 
         MDGUI__mutex_lock (mdgui);
 
@@ -1328,7 +1335,7 @@ void *terminal_change (void *data) {
         if (mdgui->tinfo.cols != previous_tinfo.cols
          || mdgui->tinfo.lines != previous_tinfo.lines) {
 
-            MDGUI__add_event (mdgui, MDGUI__terminal_change_event, mdgui);
+            MDGUI__add_event_raw (mdgui, MDGUI__terminal_change_event, mdgui);
 
             previous_tinfo = mdgui->tinfo;
         }

@@ -16,10 +16,6 @@
 #include "mdguimeta.h"
 #include "mdguiplaylist.h"
 
-#ifndef REFRESH_RATE
-#define REFRESH_RATE 50000
-#endif
-
 struct MDGUI__terminal {
 
     int cols;
@@ -100,12 +96,16 @@ struct MDGUI__manager {
     int meta_top;
     int meta_bottom;
 
+    int refresh_rate;
+
     bool stop_all_signal;
 };
 
 typedef struct MDGUI__manager MDGUI__manager_t;
 
 bool            MDGUI__init                     (MDGUI__manager_t *mdgui);
+
+void            MDGUI__set_refresh_rate         (MDGUI__manager_t *mdgui, int refresh_rate);
 
 bool            MDGUI__start                    (MDGUI__manager_t *mdgui);
 

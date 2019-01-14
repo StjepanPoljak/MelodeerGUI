@@ -120,7 +120,6 @@ void MDGUIMB__draw_time (MDGUI__meta_box_t *metabox) {
     if (final_string_size < metabox->box.width - 2) {
 
         mvprintw (metabox->box.y + metabox->box.height - 1, metabox->box.x + (metabox->box.width - (final_string_size + 1)) / 2, " %s ", final_string);
-        refresh ();
     }
 
     if (final_string) free (final_string);
@@ -163,8 +162,6 @@ void MDGUIMB__draw_contents (MDGUI__meta_box_t *metabox) {
     }
 
     if (sample_rate_string) mvprintw (term_pos_y + metabox->box.height - 3, term_pos_x + (width - (sample_rate_string_size - 1)) / 2, "%s", sample_rate_string);
-
-    refresh ();
 
     free (sample_rate_string);
 }
@@ -217,8 +214,6 @@ void MDGUIMB__draw_progress_bar (MDGUI__meta_box_t *metabox) {
     }
 
     metabox->prev_state = boxes;
-
-    refresh ();
 }
 
 void MDGUIMB__load (MDGUI__meta_box_t *metabox, MD__metadata_t metadata) {
@@ -285,8 +280,6 @@ void MDGUIMB__draw_fft (MDGUI__meta_box_t *metabox) {
             mvprintw (metabox->box.y + row + 2, metabox->box.x + (metabox->box.width - 16)/2 + col + 1, "%c", curr);
         }
     }
-
-    refresh ();
 }
 
 void MDGUIMB__deinit (MDGUI__meta_box_t *metabox) {

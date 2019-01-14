@@ -71,8 +71,6 @@ void MDGUI__draw_box_opt (MDGUI__box_t *box, bool clear_contents) {
     mvprintw (term_pos_y, term_pos_x + (width - string_size) / 2, " %s ", box->name);
 
     if (box->selected) attroff (A_REVERSE);
-
-    refresh();
 }
 
 void MDGUI__highlight_box (MDGUI__box_t *box) {

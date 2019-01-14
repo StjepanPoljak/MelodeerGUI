@@ -131,8 +131,6 @@ void MDGUILB__print_out (MDGUI__listbox_t *listbox, int num_selected) {
 
         if (!dirflag && i == num_selected) attroff (A_BOLD);
     }
-
-    refresh ();
 }
 
 void MDGUILB__draw (MDGUI__listbox_t *listbox, int num_selected) {
