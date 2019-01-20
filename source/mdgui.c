@@ -7,8 +7,6 @@
 #include <melodeer/mdmpg123.h>
 #include <melodeer/mdutils.h>
 
-#define MDGUI_DEBUG
-
 void        *MDGUI__wait_for_keypress       (void *data);
 bool        key_pressed                     (MDGUI__manager_t *mdgui, char key[3]);
 void        *terminal_change                (void *data);
