@@ -42,6 +42,7 @@ int MDGUI__get_box_x (MDGUI__manager_t *mdgui, int order) {
 bool MDGUI__init (MDGUI__manager_t *mdgui) {
 
     mdgui->refresh_rate = 50000;
+    mdgui->max_events = 1;
 
     mdgui->top = 2;
     mdgui->bottom = 3;
@@ -252,6 +253,10 @@ void MDGUI__init_event_queue (MDGUI__manager_t *mdgui) {
 
 void MDGUI__add_event_raw (MDGUI__manager_t *mdgui, bool (*new_f)(void *), void *data) {
 
+    if (mdgui->max_events > 0 && mdgui->max_events <= mdgui->event_queue_last + 1) {
+        return;
+    }
+
     MDGUI__event_t **old_queue = NULL;
 
     if (mdgui->event_queue_last >= 0) {
@@ -421,7 +426,7 @@ void *MDGUI__wait_for_keypress (void *data) {
 
     for(;;) {
 
-        usleep(mdgui->refresh_rate);
+        usleep(mdgui->refresh_rate * 0.5);
 
         MDGUI__mutex_lock (mdgui);
 
