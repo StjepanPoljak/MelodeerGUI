@@ -22,9 +22,7 @@ MDGUI__meta_box_t MDGUIMB__create (char *name, int x, int y, int height, int wid
 void MDGUIMB__reset_variables (MDGUI__meta_box_t *metabox) {
 
     metabox->metadata_present = false;
-    metabox->pause = false;
     metabox->total_seconds = 0;
-    metabox->end_signal = false;
     metabox->curr_sec = 0;
     metabox->prev_state = -1;
 
@@ -229,30 +227,14 @@ void MDGUIMB__load (MDGUI__meta_box_t *metabox, MD__metadata_t metadata) {
     metabox->seconds        = (int)(metabox->total_seconds - (float)(60 * metabox->minutes));
 
     metabox->metadata_present = true;
-
-    MDGUIMB__redraw (metabox);
-}
-
-
-void MDGUIMB__unset_pause (MDGUI__meta_box_t *metabox) {
-
-    metabox->pause = false;
-}
-
-
-void MDGUIMB__set_pause (MDGUI__meta_box_t *metabox) {
-
-    metabox->pause = true;
 }
 
 
 void MDGUIMB__unload (MDGUI__meta_box_t *metabox) {
 
-    metabox->end_signal = true;
-
-    if (metabox->pause) metabox->pause = false;
-
     MDGUIMB__reset_variables (metabox);
+
+    MDGUIMB__erase_fft_data (metabox);
     
     MDGUI__draw_box_opt (&metabox->box, true);
 

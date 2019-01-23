@@ -27,9 +27,7 @@ struct MDGUI__meta_box {
 
     int prev_state;
 
-    volatile bool end_signal;
     float curr_sec;
-    volatile bool pause;
 
     float total_seconds;
 

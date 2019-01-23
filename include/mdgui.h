@@ -87,6 +87,8 @@ struct MDGUI__manager {
 
     MDGUI__play_state volatile current_play_state;
 
+    bool stop_all_signal;
+
     // related to window positions and padding
 
     int top;
@@ -98,7 +100,7 @@ struct MDGUI__manager {
 
     int refresh_rate;
 
-    bool stop_all_signal;
+    int max_events;
 };
 
 typedef struct MDGUI__manager MDGUI__manager_t;

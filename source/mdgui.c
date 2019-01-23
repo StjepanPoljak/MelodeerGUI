@@ -42,6 +42,7 @@ int MDGUI__get_box_x (MDGUI__manager_t *mdgui, int order) {
 bool MDGUI__init (MDGUI__manager_t *mdgui) {
 
     mdgui->refresh_rate = 50000;
+    mdgui->max_events = 1;
 
     mdgui->top = 2;
     mdgui->bottom = 3;
@@ -144,26 +145,18 @@ bool MDGUI__start (MDGUI__manager_t *mdgui) {
             break;
         }
 
-        if (mdgui->metabox.metadata_present && !mdgui->metabox.pause) {
+        if (mdgui->metabox.metadata_present && mdgui->current_play_state != MDGUI__PAUSE && mdgui->current_play_state != MDGUI__NOT_PLAYING && mdgui->current_play_state != MDGUI__INITIALIZING) {
 
-            if (mdgui->metabox.end_signal) {
+            MDGUIMB__draw_time (&mdgui->metabox);
+            MDGUIMB__draw_fft (&mdgui->metabox);
+            MDGUIMB__draw_progress_bar (&mdgui->metabox);
 
-                MDGUIMB__reset_variables (&mdgui->metabox);
-                MDGUIMB__erase_fft_data (&mdgui->metabox);
-            }
-            else {
+            refresh ();
 
-                MDGUIMB__draw_time (&mdgui->metabox);
-                MDGUIMB__draw_fft (&mdgui->metabox);
-                MDGUIMB__draw_progress_bar (&mdgui->metabox);
+            gettimeofday (&timecheck, NULL);
+            end = (double)timecheck.tv_sec + (double)timecheck.tv_usec / 1e6;
 
-                refresh ();
-
-                gettimeofday (&timecheck, NULL);
-                end = (double)timecheck.tv_sec + (double)timecheck.tv_usec / 1e6;
-
-                mdgui->metabox.curr_sec += end - start;
-            }
+            mdgui->metabox.curr_sec += end - start;
         }
         else refresh ();
 
@@ -251,6 +244,10 @@ void MDGUI__init_event_queue (MDGUI__manager_t *mdgui) {
 }
 
 void MDGUI__add_event_raw (MDGUI__manager_t *mdgui, bool (*new_f)(void *), void *data) {
+
+    if (mdgui->max_events > 0 && mdgui->max_events <= mdgui->event_queue_last + 1) {
+        return;
+    }
 
     MDGUI__event_t **old_queue = NULL;
 
@@ -421,7 +418,7 @@ void *MDGUI__wait_for_keypress (void *data) {
 
     for(;;) {
 
-        usleep(mdgui->refresh_rate);
+        usleep(mdgui->refresh_rate * 0.5);
 
         MDGUI__mutex_lock (mdgui);
 
@@ -465,22 +462,11 @@ void MDGUI__draw (MDGUI__manager_t *mdgui) {
     return;
 }
 
-struct MDGUI__metadata_event {
-
-    MD__metadata_t metadata;
-    MDGUI__manager_t *mdgui;
-};
-
 bool MDGUI__handle_metadata_event (void *data) {
 
-    struct MDGUI__metadata_event *metadata_event = (struct MDGUI__metadata_event *)data;
+    MDGUI__meta_box_t *metabox = (MDGUI__meta_box_t *)data;
 
-    MDGUI__manager_t *mdgui = metadata_event->mdgui;
-    MD__metadata_t metadata = metadata_event->metadata;
-
-    MDGUIMB__load (&mdgui->metabox, metadata);
-
-    free (metadata_event);
+    MDGUIMB__redraw (metabox);
 
     return true;
 }
@@ -489,12 +475,13 @@ void MD__handle_metadata (MD__metadata_t metadata, void *user_data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
-    struct MDGUI__metadata_event *metadata_event = malloc (sizeof (*metadata_event));
+    MDGUI__mutex_lock (mdgui);
 
-    metadata_event->metadata = metadata;
-    metadata_event->mdgui = mdgui;
+    MDGUIMB__load (&mdgui->metabox, metadata);
 
-    MDGUI__add_event (mdgui, MDGUI__handle_metadata_event, metadata_event);
+    MDGUI__add_event_raw (mdgui, MDGUI__handle_metadata_event, &mdgui->metabox);
+
+    MDGUI__mutex_unlock (mdgui);
 
     return;
 }
@@ -1121,9 +1108,6 @@ bool MDGUI__pause_event (void *data) {
         mdgui->current_play_state = mdgui->curr_playing->MD__pause_playing
                                   ? MDGUI__PAUSE
                                   : MDGUI__PLAYING;
-
-        if (mdgui->current_play_state == MDGUI__PAUSE) MDGUIMB__set_pause (&mdgui->metabox);
-        else MDGUIMB__unset_pause (&mdgui->metabox);
 
         MDGUI__log (mdgui->current_play_state == MDGUI__PAUSE
                     ? "Playing paused."
