@@ -2,7 +2,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
-#include <ncurses.h>
+#include "mdguidraw.h"
 
 struct MDGUI__str_array {
 

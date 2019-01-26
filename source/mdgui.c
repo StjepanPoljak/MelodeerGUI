@@ -91,7 +91,7 @@ bool MDGUI__start (MDGUI__manager_t *mdgui) {
 
     MDAL__initialize (4096, 4, 4);
 
-    initscr ();
+    // initscr ();
 
     clear ();
 
@@ -192,7 +192,7 @@ bool MDGUI__start (MDGUI__manager_t *mdgui) {
 
     clear ();
 
-    endwin();
+    // endwin();
 
     return true;
 }
