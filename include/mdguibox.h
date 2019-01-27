@@ -2,7 +2,8 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include <ncurses.h>
+#include "mdguidraw.h"
+// #include <ncurses.h>
 
 struct MDGUI__box {
 
