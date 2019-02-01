@@ -1233,11 +1233,16 @@ bool MDGUI__terminal_change_event (void *data) {
 
     unsigned int tinfo_size = snprintf (NULL, 0, "Changed size to %d x %d.",
                                         mdgui->tinfo.cols, mdgui->tinfo.lines) + 1;
+
     char *tinfo_string = malloc (sizeof (*tinfo_string) * tinfo_size);
+
     snprintf (tinfo_string, tinfo_size, "Changed size to %d x %d.", mdgui->tinfo.cols,
               mdgui->tinfo.lines);
 
     MDGUI__log (tinfo_string, mdgui);
+
+    curs_set(0);
+
     if (tinfo_string) free (tinfo_string);
 
     return true;
