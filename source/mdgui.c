@@ -491,6 +491,17 @@ bool MDGUI__redraw_playlist_event (void *data) {
     return true;
 }
 
+bool MDGUI__replay_event (void *user_data) {
+
+    MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
+
+    MDGUI__start_playing (mdgui);
+
+    MDGUIPB__redraw (&mdgui->playlistbox);
+
+    return true;
+}
+
 void MDGUI__play_complete (void *user_data) {
 
     MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
@@ -548,7 +559,7 @@ void MDGUI__play_complete (void *user_data) {
 
         mdgui->current_play_state = MDGUI__NOT_PLAYING;
 
-        MDGUI__start_playing (user_data);
+        MDGUI__add_event_raw (mdgui, MDGUI__replay_event, mdgui);
 
         MDGUI__mutex_unlock (mdgui);
 
@@ -557,11 +568,9 @@ void MDGUI__play_complete (void *user_data) {
 
     MDGUI__log ("Starting to play again.", mdgui);
 
-    MDGUI__add_event_raw (mdgui, MDGUI__redraw_playlist_event, user_data);
+    MDGUI__add_event_raw (mdgui, MDGUI__replay_event, mdgui);
 
     MDGUI__mutex_unlock (mdgui);
-
-    MDGUI__start_playing (user_data);
 
     return;
 }
