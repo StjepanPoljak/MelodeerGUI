@@ -9,7 +9,12 @@ To build (after installing Melodeer library), just run `make`. Then, simply run 
 
 ## Usage
 
-Use arrow keys to move, return key to select and escape key to exit (either window or program).
+Use arrow keys to navigate, return key to select and escape key to exit (either currently selected window or program). Also:
+
+| key |  action  |
+|-----|----------|
+| `s` |  stop    |
+| `p` |  pause   |
 
 ## Demo
 
