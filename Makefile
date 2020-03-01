@@ -1,33 +1,29 @@
 proj = melodeergui
+
 objects = main.o mdgui.o mdguidraw.o mdguifilebox.o mdguimeta.o mdguilistbox.o mdguistrarr.o mdguibox.o mdguiplaylist.o
-libs = melodeer pthread m
 
 srcdir = source
 builddir = build
 depsdir = include
 
+LDLIBS := -lmelodeer -pthread -lm
+CFLAGS += -I$(depsdir)
+
 $(proj): $(objects)
-	gcc $(addprefix $(builddir)/,$^) $(addprefix -l,$(libs)) -o $(proj)
+	$(CC) $(addprefix $(builddir)/,$^) $(LDLIBS) -o $@ $(LDFLAGS)
 	@-./save.sh
 
 %.o: $(srcdir)/%.c $(depsdir)/%.h
-	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir)
+	$(CC) $(CFLAGS) -c $< -o $(addprefix $(builddir)/,$@)
 
 main.o: $(srcdir)/main.c
 	-mkdir $(builddir)
-	gcc -c $< -o $(addprefix $(builddir)/,$@) -I$(depsdir)
+	$(CC) $(CFLAGS) -c $< -o $(addprefix $(builddir)/,$@)
 
-.PHONY=clean
+.PHONY=clean run
 clean:
-	-rm $(builddir)/* $(proj)
-	-rm *.log
+	@-rm $(builddir)/* $(proj)
+	@-rm *.log
 
-.PHONY=run
-run:
-	make $(proj)
+run: $(proj)
 	./$(proj)
-
-.PHONY=debug
-debug:
-	make $(proj)
-	valgrind -v --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(proj)
