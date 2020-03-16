@@ -1,5 +1,9 @@
 proj = melodeergui
 
+ifeq ($(CC), cc)
+	CC = gcc
+endif
+
 objects = main.o mdgui.o mdguidraw.o mdguifilebox.o mdguimeta.o mdguilistbox.o mdguistrarr.o mdguibox.o mdguiplaylist.o
 
 srcdir = source
