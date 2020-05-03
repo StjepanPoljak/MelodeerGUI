@@ -1128,7 +1128,10 @@ bool MDGUI__append_event(void *data) {
 	MDGUIFB__serialize_curr_dir(&mdgui->filebox, &pr_info.curr_dir);
 	pr_info.curr_dir_str_size = MDGUI__get_string_size(pr_info.curr_dir);
 
-	MDGUI__str_transform_prepend_dir(&pr_info, &(mdgui->filebox.listbox.str_array.carray[fb_selected][1]), &fname_transformed);
+	MDGUI__str_transform_prepend_dir(&pr_info,
+					 mdgui->filebox.listbox.str_array
+					 	       .carray[fb_selected],
+					 &fname_transformed);
 
 	MDGUI__log(fname_transformed, mdgui);
 
