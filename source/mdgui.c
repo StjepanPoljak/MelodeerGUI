@@ -1116,6 +1116,29 @@ bool MDGUI__stop_event(void *data) {
 	return true;
 }
 
+bool MDGUI__append_event(void *data) {
+
+	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
+	int fb_selected = mdgui->filebox.listbox.num_selected;
+	struct MDGUI__prepend_info pr_info;
+	char *fname_transformed;
+
+	pr_info.curr_dir = NULL;
+
+	MDGUIFB__serialize_curr_dir(&mdgui->filebox, &pr_info.curr_dir);
+	pr_info.curr_dir_str_size = MDGUI__get_string_size(pr_info.curr_dir);
+
+	MDGUI__str_transform_prepend_dir(&pr_info, &(mdgui->filebox.listbox.str_array.carray[fb_selected][1]), &fname_transformed);
+
+	MDGUI__log(fname_transformed, mdgui);
+
+	MDGUIPB__append(&mdgui->playlistbox, fname_transformed);
+
+	MDGUIPB__redraw(&mdgui->playlistbox);
+
+	return true;
+}
+
 bool MDGUI__delete_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
@@ -1200,6 +1223,21 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 			break;
 		}
 	}
+	else if ((key[0] == 'a') && key[1] == 0 && key[2] == 0) {
+
+		switch (mdgui->selected_component) {
+
+		case MDGUI__FILEBOX:
+
+			if (mdgui->filebox.listbox.num_selected == -1)
+				break;
+
+			MDGUI__add_event(mdgui, MDGUI__append_event, mdgui);
+		default:
+			break;
+		}
+	}
+
 
 	return true;
 }

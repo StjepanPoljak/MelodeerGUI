@@ -14,7 +14,7 @@ MDGUI__playlist_box_t MDGUIPB__create(char *name, int x, int y,
 
 void MDGUI__str_transform_fname(void *data, char *src, char **dest) {
 
-	int src_size = MDGUI__get_string_size (src) + 1;
+	int src_size = MDGUI__get_string_size(src) + 1;
 
 	if (src_size <= 2)
 		return;
@@ -71,6 +71,14 @@ char *MDGUIPB__get_curr_filename(MDGUI__playlist_box_t *playlistbox) {
 void MDGUIPB__delete(MDGUI__playlist_box_t *playlistbox, int to_delete) {
 	MDGUI__str_array_delete(&playlistbox->listbox.str_array, to_delete);
 	MDGUI__str_array_delete(&playlistbox->filenames, to_delete);
+
+	return;
+}
+
+void MDGUIPB__append(MDGUI__playlist_box_t *playlistbox, char* filename) {
+
+	//MDGUI__str_array_append(&playlistbox->listbox.str_array, filename);
+	MDGUI__str_array_append(&playlistbox->filenames, filename);
 
 	return;
 }

@@ -15,6 +15,8 @@ MDGUI__playlist_box_t MDGUIPB__create	(char *name, int x, int y,
 void	MDGUIPB__draw			(MDGUI__playlist_box_t *playlistbox);
 void	MDGUIPB__redraw			(MDGUI__playlist_box_t *playlistbox);
 char*	MDGUIPB__get_curr_filename	(MDGUI__playlist_box_t *playlistbox);
+void	MDGUIPB__append			(MDGUI__playlist_box_t *playlistbox,
+					 char* filename);
 void	MDGUIPB__delete			(MDGUI__playlist_box_t *playlistbox,
 					 int to_delete);
 void	MDGUIPB__deinit			(MDGUI__playlist_box_t *playlistbox);

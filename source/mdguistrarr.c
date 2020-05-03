@@ -29,15 +29,17 @@ void MDGUI__str_array_append(MDGUI__str_array_t *str_array, char *string) {
 
 		for (int i = 0; i < prev_cnum; i++) {
 
-			int str_size = MDGUI__get_string_size (str_array->carray[i]) + 1;
+			int str_size = MDGUI__get_string_size(str_array->carray[i]) + 1;
 
-			temp[i] = malloc (sizeof(**(str_array->carray)) * str_size);
+			temp[i] = malloc(sizeof(**(str_array->carray)) * str_size);
 
-			for (int j = 0; j < str_size; j++) temp[i][j] = str_array->carray[i][j];
+			for (int j = 0; j < str_size; j++)
+				temp[i][j] = str_array->carray[i][j];
 		}
 
 		str_array->carray = realloc(str_array->carray,
-					    sizeof(*(str_array->carray)) * (str_array->csize));
+					    sizeof(*(str_array->carray))
+					 * (str_array->csize));
 	}
 	else if (str_array->csize == 0) {
 		 str_array->csize = 1;
@@ -46,19 +48,24 @@ void MDGUI__str_array_append(MDGUI__str_array_t *str_array, char *string) {
 
 	int string_size = MDGUI__get_string_size(string) + 1;
 
-	str_array->carray[prev_cnum] = malloc(sizeof(**str_array->carray) * string_size);
+	str_array->carray[prev_cnum] = malloc(sizeof(**str_array->carray)
+					    * string_size);
 
-	for (int i = 0; i < string_size; i++) str_array->carray[prev_cnum][i] = string[i];
+	for (int i = 0; i < string_size; i++)
+		str_array->carray[prev_cnum][i] = string[i];
 
 	if (temp) {
 
-		for (int i=0; i<prev_cnum; i++) {
+		for (int i = 0; i < prev_cnum; i++) {
 
-			int i_string_size = MDGUI__get_string_size(str_array->carray[i]) + 1;
+			int i_string_size
+				= MDGUI__get_string_size(str_array->carray[i]) + 1;
 
-			str_array->carray[i] = realloc(str_array->carray[i], i_string_size);
+			str_array->carray[i] = realloc(str_array->carray[i],
+						       i_string_size);
 
-			for (int j = 0; j < i_string_size; j++) str_array->carray[i][j] = temp[i][j];
+			for (int j = 0; j < i_string_size; j++)
+				str_array->carray[i][j] = temp[i][j];
 
 			free(temp[i]);
 		}
@@ -74,7 +81,8 @@ char MDGUI__small_cap(char c) {
 	return (c >= 65 && c <= 90) ? c + 32 : c;
 }
 
-int MDGUI__partition(MDGUI__str_array_t *str_array, bool (*compare_f) (char *, char*),
+int MDGUI__partition(MDGUI__str_array_t *str_array,
+		     bool (*compare_f) (char *, char*),
 		     int lo, int hi) {
 
 	char *pivot = str_array->carray[hi];
@@ -99,7 +107,8 @@ int MDGUI__partition(MDGUI__str_array_t *str_array, bool (*compare_f) (char *, c
 	return i+1;
 }
 
-void MDGUI__sort_step(MDGUI__str_array_t *str_array, bool (*compare_f) (char *, char*),
+void MDGUI__sort_step(MDGUI__str_array_t *str_array,
+		      bool (*compare_f) (char *, char*),
 		      int lo, int hi) {
 
 	if (lo < hi) {
@@ -113,7 +122,9 @@ void MDGUI__sort_step(MDGUI__str_array_t *str_array, bool (*compare_f) (char *, 
 	return;
 }
 
-void MDGUI__sort(MDGUI__str_array_t *str_array, bool(*compare_f)(char *, char*)) {
+void MDGUI__sort(MDGUI__str_array_t *str_array,
+		 bool(*compare_f)(char *, char*)) {
+
 	MDGUI__sort_step(str_array, compare_f, 0, str_array->cnum - 1);
 
 	return;
@@ -155,7 +166,8 @@ void MDGUI__str_transform_ignore(void *data, char *src, char **dest) {
 	return;
 }
 
-void MDGUI__str_array_copy(MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest,
+void MDGUI__str_array_copy(MDGUI__str_array_t *str_array_source,
+			   MDGUI__str_array_t *str_array_dest,
 			   int from_i, int to_i, int ignore) {
 
 	MDGUI__str_array_copy_raw(str_array_source, str_array_dest, from_i, to_i,
@@ -164,26 +176,33 @@ void MDGUI__str_array_copy(MDGUI__str_array_t *str_array_source, MDGUI__str_arra
 	return;
 }
 
-void MDGUI__str_array_copy_raw(MDGUI__str_array_t *str_array_source, MDGUI__str_array_t *str_array_dest,
+void MDGUI__str_array_copy_raw(MDGUI__str_array_t *str_array_source,
+			       MDGUI__str_array_t *str_array_dest,
 			       int from_i, int to_i, void *data,
-			       void (*transform) (void *data, char *src, char **dest)) {
+			       void (*transform) (void *data,
+						  char *src,
+						  char **dest)) {
 
-	if (MDGUI__str_array_is_empty(str_array_source)) return;
+	if (MDGUI__str_array_is_empty(str_array_source))
+		return;
 
-	if (from_i < 0 || to_i >= str_array_source->cnum) return;
+	if (from_i < 0 || to_i >= str_array_source->cnum)
+		return;
 
 	int size = to_i - from_i + 1;
 
 	if (size <= 0) return;
 
-	if (!MDGUI__str_array_is_empty (str_array_dest)) MDGUI__str_array_empty (str_array_dest);
+	if (!MDGUI__str_array_is_empty(str_array_dest))
+		MDGUI__str_array_empty(str_array_dest);
 
 	if (str_array_dest->csize < size) {
 
 		int allocsize = sizeof(str_array_dest->carray) * size;
 
 		if (str_array_dest->carray) {
-			str_array_dest->carray = realloc(str_array_dest->carray, allocsize);
+			str_array_dest->carray = realloc(str_array_dest->carray,
+							 allocsize);
 		}
 		else {
 			str_array_dest->carray = malloc(allocsize);
@@ -209,12 +228,14 @@ void MDGUI__str_array_copy_raw(MDGUI__str_array_t *str_array_source, MDGUI__str_
 
 		int string_size = MDGUI__get_string_size(res) + 1;
 
-		str_array_dest->carray[i] = malloc(sizeof(*str_array_dest->carray) * string_size);
+		str_array_dest->carray[i] = malloc(sizeof(*str_array_dest->carray)
+						 * string_size);
 
 		for (int j = 0; j < string_size; j++)
 			str_array_dest->carray[i][j] = res[j];
 
-		if (res) free(res);
+		if (res)
+			free(res);
 	}
 
 	str_array_dest->cnum = size;
@@ -259,7 +280,8 @@ void MDGUI__str_array_deinit (MDGUI__str_array_t *str_array) {
 
 	if (str_array->carray) {
 
-		for (int i = 0; i < str_array->cnum; i++) free(str_array->carray[i]);
+		for (int i = 0; i < str_array->cnum; i++)
+			free(str_array->carray[i]);
 
 		free(str_array->carray);
 	}
