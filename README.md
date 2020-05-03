@@ -15,8 +15,10 @@ Use arrow keys to navigate, return key to select and escape key to exit (either 
 
 | key |  action  |
 |-----|----------|
-| `s` |  stop    |
+| `s` |   stop   |
 | `p` |  pause   |
+| `a` |  append  |
+| `d` |  delete  |
 
 ## Demo
 
