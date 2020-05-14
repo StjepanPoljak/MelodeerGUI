@@ -47,7 +47,7 @@ int MDGUI__get_box_x(MDGUI__manager_t *mdgui, int order) {
 bool MDGUI__init(MDGUI__manager_t *mdgui) {
 
 	mdgui->refresh_rate = 50000;
-	mdgui->max_events = 1;
+	mdgui->max_events = 3;
 
 	mdgui->top = 2;
 	mdgui->bottom = 3;
@@ -1146,10 +1146,11 @@ bool MDGUI__delete_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
+	bool will_play_next = false;
+
 	if (mdgui->playlistbox.num_playing
 	 == mdgui->playlistbox.listbox.num_selected) {
-
-		MDGUI__add_event_raw(mdgui, MDGUI__stop_event, mdgui);
+		will_play_next = true;
 	}
 
 	MDGUIPB__delete(&mdgui->playlistbox,
@@ -1163,6 +1164,10 @@ bool MDGUI__delete_event(void *data) {
 	if (mdgui->playlistbox.listbox.str_array.cnum
 	 == mdgui->playlistbox.listbox.num_selected) {
 		mdgui->playlistbox.listbox.num_selected--;
+	}
+
+	if (will_play_next) {
+		MDGUI__return_event(mdgui);
 	}
 
 	MDGUIPB__redraw(&mdgui->playlistbox);
