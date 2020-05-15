@@ -13,12 +13,13 @@ To build (after installing Melodeer library), just run `make`. Then, simply run 
 
 Use arrow keys to navigate, return key to select and escape key to exit (either currently selected window or program). Also:
 
-| key |  action  |
-|-----|----------|
-| `s` |   stop   |
-| `p` |  pause   |
-| `a` |  append  |
-| `d` |  delete  |
+| key |     action      |
+|-----|-----------------|
+| `s` |      stop       |
+| `p` |      pause      |
+| `a` |  append single  |
+| `A` | append multiple |
+| `d` |     delete      |
 
 ## Demo
 

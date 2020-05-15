@@ -409,7 +409,6 @@ MDGUI__terminal MDGUI__get_terminal_information() {
 }
 
 struct MDGUI__prepend_info {
-
 	char *curr_dir;
 	int curr_dir_str_size;
 };
@@ -1116,10 +1115,12 @@ bool MDGUI__stop_event(void *data) {
 	return true;
 }
 
-bool MDGUI__append_event(void *data) {
+struct append_data_t {
+	MDGUI__manager_t* mdgui;
+	bool single_file;
+};
 
-	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
-	int fb_selected = mdgui->filebox.listbox.num_selected;
+static void MDGUI__append_single(MDGUI__manager_t* mdgui, int to_append) {
 	struct MDGUI__prepend_info pr_info;
 	char *fname_transformed;
 
@@ -1130,14 +1131,36 @@ bool MDGUI__append_event(void *data) {
 
 	MDGUI__str_transform_prepend_dir(&pr_info,
 					 mdgui->filebox.listbox.str_array
-					 	       .carray[fb_selected],
+					 	       .carray[to_append],
 					 &fname_transformed);
-
-	MDGUI__log(fname_transformed, mdgui);
 
 	MDGUIPB__append(&mdgui->playlistbox, fname_transformed);
 
 	MDGUIPB__redraw(&mdgui->playlistbox);
+}
+
+static bool MDGUI__append_event(void *data) {
+
+	struct append_data_t* adt = (struct append_data_t*)data;
+
+	if(adt->single_file) {
+		MDGUI__append_single(adt->mdgui,
+				     adt->mdgui->filebox.listbox.num_selected);
+	}
+	else {
+		int i;
+		int start = adt->mdgui->filebox.listbox.num_selected;
+		int cnum = adt->mdgui->filebox.listbox.str_array.cnum;
+
+		for (i = start < 0 ? 0 : start; i < cnum; i++) {
+			if (adt->mdgui->filebox.listbox.str_array.carray[i][0] == 'd')
+				continue;
+			else
+				MDGUI__append_single(adt->mdgui, i);
+		}
+	}
+
+	free(adt);
 
 	return true;
 }
@@ -1175,7 +1198,7 @@ bool MDGUI__delete_event(void *data) {
 	return true;
 }
 
-bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
+bool key_pressed(MDGUI__manager_t *mdgui, char key[3]) {
 
 	if (key[0] == 27 && key[1] == 0 && key[2] == 0) {
 		// ESCAPE
@@ -1231,16 +1254,23 @@ bool key_pressed (MDGUI__manager_t *mdgui, char key[3]) {
 			break;
 		}
 	}
-	else if ((key[0] == 'a') && key[1] == 0 && key[2] == 0) {
+	else if ((key[0] == 'a' || key[0] == 'A') && key[1] == 0 && key[2] == 0) {
 
 		switch (mdgui->selected_component) {
 
 		case MDGUI__FILEBOX:
 
-			if (mdgui->filebox.listbox.num_selected == -1)
+			if (key[0] == 'a' && mdgui->filebox.listbox.num_selected == -1)
 				break;
 
-			MDGUI__add_event(mdgui, MDGUI__append_event, mdgui);
+			if (key[0] == 'a' && MDGUIFB__is_selected_a_file(&mdgui->filebox) != 1)
+				break;
+
+			struct append_data_t *adt = malloc(sizeof(*adt));
+
+			adt->mdgui = mdgui;
+			adt->single_file = key[0] == 'a';
+			MDGUI__add_event(mdgui, MDGUI__append_event, adt);
 		default:
 			break;
 		}
