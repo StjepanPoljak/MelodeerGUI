@@ -9,52 +9,64 @@
 
 // TODO: this needs serious review & refactoring, perhaps complete v2.0
 
-static void	*MDGUI__wait_for_keypress	(void *data);
-static bool	key_pressed			(MDGUI__manager_t *mdgui,
-						 char key[3]);
-static void	*terminal_change		(void *data);
-static void	MDGUI__draw_logo		(MDGUI__manager_t *mdgui);
-static void	MDGUI__start_playing		(MDGUI__manager_t *mdgui);
-static bool	MDGUI__stop_all_playing		(MDGUI__manager_t *mdgui);
-static void	MDGUI__complete			(MDGUI__manager_t *mdgui);
-static void	MDGUIMB__transform		(MD__buffer_chunk_t *curr_chunk,
-						 unsigned int sample_rate,
-						 unsigned int channels,
-						 unsigned int bps, void *user_data);
-static void	MDGUI__add_event		(MDGUI__manager_t *mdgui,
-						 bool (*new_f)(void *),
-						 void *data);
-static bool	MDGUI__exec_last_event		(MDGUI__manager_t *mdgui);
-static void	MDGUI__init_event_queue		(MDGUI__manager_t *mdgui);
+static void	*MDGUI__wait_for_keypress	(void*);
+static bool	key_pressed			(MDGUI__manager_t*,
+						 char[3]);
+static void	*terminal_change		(void*);
+static void	MDGUI__draw_logo		(MDGUI__manager_t*);
+static void	MDGUI__start_playing		(MDGUI__manager_t*);
+static bool	MDGUI__stop_all_playing		(MDGUI__manager_t*);
+static void	MDGUI__complete			(MDGUI__manager_t*);
+static void	MDGUIMB__transform		(MD__buffer_chunk_t*,
+						 unsigned int,
+						 unsigned int,
+						 unsigned int,
+						 void*);
+static void	MDGUI__add_event		(MDGUI__manager_t*,
+						 bool (*)(void *),
+						 void*);
+static bool	MDGUI__exec_last_event		(MDGUI__manager_t*);
+static void	MDGUI__init_event_queue		(MDGUI__manager_t*);
 
-int MDGUI__get_next_default(int curr, int size) {
+static void	MDGUI__log			(const char*,
+						 MDGUI__manager_t*);
+static void	MDGUI__draw			(MDGUI__manager_t*);
+static void	MDGUI__mutex_lock		(MDGUI__manager_t*);
+static void	MDGUI__mutex_unlock		(MDGUI__manager_t*);
+
+static MDGUI__terminal MDGUI__get_terminal_information ();
+
+static int MDGUI__get_next_default(int curr, int size) {
 
 	return ++curr;
 }
 
-int MDGUI__get_next_random(int curr, int size) {
+static int MDGUI__get_next_random(int curr, int size) {
 
 	srand(time(0));
 
 	return rand() % size;
 }
 
-int MDGUI__get_box_width(MDGUI__manager_t *mdgui) {
+static int MDGUI__get_box_width(MDGUI__manager_t *mdgui) {
 
 	return (mdgui->tinfo.cols - mdgui->left - mdgui->right) / 3;
 }
 
-int MDGUI__get_box_height(MDGUI__manager_t *mdgui) {
+static int MDGUI__get_box_height(MDGUI__manager_t *mdgui) {
 
 	return (mdgui->tinfo.lines - mdgui->top - mdgui->bottom);
 }
 
-int MDGUI__get_box_x(MDGUI__manager_t *mdgui, int order) {
+static int MDGUI__get_box_x(MDGUI__manager_t *mdgui, int order) {
 
 	return (mdgui->left + (order * MDGUI__get_box_width(mdgui)));
 }
 
 bool MDGUI__init(MDGUI__manager_t *mdgui) {
+
+	int box_width;
+	int box_height;
 
 	mdgui->refresh_rate = 50000;
 	mdgui->max_events = 3;
@@ -76,22 +88,27 @@ bool MDGUI__init(MDGUI__manager_t *mdgui) {
 
 	mdgui->stop_all_signal = false;
 
-	int box_width = MDGUI__get_box_width(mdgui);
-	int box_height = MDGUI__get_box_height(mdgui);
+	box_width = MDGUI__get_box_width(mdgui);
+	box_height = MDGUI__get_box_height(mdgui);
 
-	mdgui->filebox = MDGUIFB__create("files", MDGUI__get_box_x(mdgui, 0),
-					 mdgui->top, box_height, box_width);
+	mdgui->filebox = MDGUIFB__create(
+			"files", MDGUI__get_box_x(mdgui, 0),
+			 mdgui->top, box_height, box_width
+			 );
 
-	mdgui->metabox = MDGUIMB__create("metadata", MDGUI__get_box_x(mdgui, 1) + 1,
-					 mdgui->top + mdgui->meta_top,
-					 box_height - mdgui->meta_bottom
-					 - mdgui->meta_top, box_width - 2);
+	mdgui->metabox = MDGUIMB__create(
+			"metadata", MDGUI__get_box_x(mdgui, 1) + 1,
+			mdgui->top + mdgui->meta_top,
+			box_height - mdgui->meta_bottom - mdgui->meta_top,
+			box_width - 2
+			);
 
-	mdgui->playlistbox = MDGUIPB__create("playlist", MDGUI__get_box_x(mdgui, 2),
-					     mdgui->top, box_height, box_width);
+	mdgui->playlistbox = MDGUIPB__create(
+			"playlist", MDGUI__get_box_x(mdgui, 2),
+			mdgui->top, box_height, box_width
+			);
 
 	MDGUI__play_state current_play_state = MDGUI__NOT_PLAYING;
-
 	mdgui->get_next = MDGUI__get_next_default;
 
 	MDGUI__init_event_queue(mdgui);
@@ -105,42 +122,7 @@ struct MDGUI__keypress_data {
 	void (*on_completion) (MDGUI__manager_t *mdgui);
 };
 
-bool MDGUI__start(MDGUI__manager_t *mdgui) {
-	struct termios orig_term_attr;
-	struct termios new_term_attr;
-	char chain[3];
-
-	MDAL__initialize(4096, 4, 4);
-
-	clear();
-	curs_set(0);
-
-	tcgetattr(fileno(stdin), &orig_term_attr);
-	memcpy(&new_term_attr, &orig_term_attr, sizeof(struct termios));
-	new_term_attr.c_lflag &= ~(ICANON | ECHO);
-	tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
-
-	MDGUI__draw(mdgui);
-	MDGUI__log("Use arrow keys to move, "
-		   "ENTER to select and ESC "
-		   "to deselect/exit.", mdgui);
-
-	if (pthread_create(&mdgui->terminal_thread, NULL, terminal_change, mdgui)) {
-
-		return false;
-	}
-
-	struct MDGUI__keypress_data *keypress_data = malloc(sizeof(*keypress_data));
-
-	keypress_data->mdgui = mdgui;
-	keypress_data->key_pressed = key_pressed;
-	keypress_data->on_completion = MDGUI__complete;
-
-	if (pthread_create(&mdgui->keyboard_input_thread, NULL,
-	    MDGUI__wait_for_keypress, keypress_data)) {
-
-		return false;
-	}
+static void MDGUI__start_event_queue(MDGUI__manager_t* mdgui) {
 
 	double start, end;
 	struct timeval timecheck;
@@ -193,6 +175,50 @@ bool MDGUI__start(MDGUI__manager_t *mdgui) {
 	pthread_join(mdgui->keyboard_input_thread, NULL);
 	pthread_join(mdgui->terminal_thread, NULL);
 
+}
+
+bool MDGUI__start(MDGUI__manager_t *mdgui) {
+
+	struct termios orig_term_attr;
+	struct termios new_term_attr;
+	char chain[3];
+	struct MDGUI__keypress_data* keypress_data;
+
+	MDAL__initialize(4096, 4, 4);
+
+	clear();
+	curs_set(0);
+
+	tcgetattr(fileno(stdin), &orig_term_attr);
+	memcpy(&new_term_attr, &orig_term_attr, sizeof(struct termios));
+	new_term_attr.c_lflag &= ~(ICANON | ECHO);
+	tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
+
+	MDGUI__draw(mdgui);
+	MDGUI__log("Use arrow keys to move, "
+		   "ENTER to select and ESC "
+		   "to deselect/exit.", mdgui);
+
+	if (pthread_create(&mdgui->terminal_thread,
+			   NULL, terminal_change, mdgui)) {
+
+		return false;
+	}
+
+	keypress_data = malloc(sizeof(*keypress_data));
+
+	keypress_data->mdgui = mdgui;
+	keypress_data->key_pressed = key_pressed;
+	keypress_data->on_completion = MDGUI__complete;
+
+	if (pthread_create(&mdgui->keyboard_input_thread, NULL,
+	    MDGUI__wait_for_keypress, keypress_data)) {
+
+		return false;
+	}
+
+	MDGUI__start_event_queue(mdgui);
+
 	tcsetattr(fileno (stdin), TCSANOW, &orig_term_attr);
 	curs_set(1);
 	clear();
@@ -205,21 +231,24 @@ void MDGUI__set_refresh_rate(MDGUI__manager_t *mdgui, int refresh_rate) {
 	mdgui->refresh_rate = refresh_rate;
 }
 
-void MDGUI__draw_logo(MDGUI__manager_t *mdgui) {
+static void MDGUI__draw_logo(MDGUI__manager_t *mdgui) {
 
 	char logo [76];
 	int line = 0;
 	int col = 0;
+	bool reversing;
+	int lastrev;
+	int i;
 
 	MD__get_logo(logo);
 
 	if (mdgui->potential_component == MDGUI__LOGO)
 		attron(A_BOLD);
 
-	bool reversing = false;
-	int lastrev = -1;
+	reversing = false;
+	lastrev = -1;
 
-	for (int i = 0; i < 75; i++) {
+	for (i = 0; i < 75; i++) {
 
 		if (logo[i] == '\n') {
 
@@ -257,15 +286,18 @@ void MDGUI__draw_logo(MDGUI__manager_t *mdgui) {
 		attroff(A_BOLD);
 }
 
-void MDGUI__init_event_queue(MDGUI__manager_t *mdgui) {
+static void MDGUI__init_event_queue(MDGUI__manager_t *mdgui) {
 
 	mdgui->event_queue = NULL;
 	mdgui->event_queue_last = -1;
 	mdgui->event_queue_size = 0;
 }
 
-void MDGUI__add_event_raw(MDGUI__manager_t *mdgui,
-			  bool (*new_f)(void *), void *data) {
+static void MDGUI__add_event_raw(MDGUI__manager_t *mdgui,
+				 bool (*new_f)(void *), void *data) {
+
+	MDGUI__event_t* new_event;
+	int i;
 
 	if (mdgui->max_events > 0
 	 && mdgui->max_events <= mdgui->event_queue_last + 1) {
@@ -279,7 +311,7 @@ void MDGUI__add_event_raw(MDGUI__manager_t *mdgui,
 		old_queue = malloc(sizeof(*old_queue)
 				   * (mdgui->event_queue_last + 1));
 
-		for (int i = 0; i <= mdgui->event_queue_last; i++) {
+		for (i = 0; i <= mdgui->event_queue_last; i++) {
 			old_queue[i] = mdgui->event_queue[i];
 		}
 	}
@@ -291,27 +323,24 @@ void MDGUI__add_event_raw(MDGUI__manager_t *mdgui,
 					? 1
 					: mdgui->event_queue_size * 2;
 
-		if (mdgui->event_queue) {
-			mdgui->event_queue = realloc(mdgui->event_queue,
-						     sizeof(*mdgui->event_queue)
-						     * mdgui->event_queue_size);
-		}
-		else {
-			mdgui->event_queue = malloc(sizeof(*mdgui->event_queue)
-						    * mdgui->event_queue_size);
-		}
+		mdgui->event_queue = mdgui->event_queue
+				   ? realloc(mdgui->event_queue,
+					     sizeof(*mdgui->event_queue)
+					     * mdgui->event_queue_size)
+				   : malloc(sizeof(*mdgui->event_queue)
+					    * mdgui->event_queue_size);
 	}
 
-	if (old_queue != NULL) {
+	if (!old_queue) {
 
-		for (int i = 0; i < mdgui->event_queue_last; i++) {
+		for (i = 0; i < mdgui->event_queue_last; i++) {
 			mdgui->event_queue[i] = old_queue[i];
 		}
 
 		free(old_queue);
 	}
 
-	MDGUI__event_t *new_event = malloc(sizeof(*new_event));
+	new_event = malloc(sizeof(*new_event));
 
 	new_event->event = new_f;
 	new_event->data = data;
@@ -319,13 +348,16 @@ void MDGUI__add_event_raw(MDGUI__manager_t *mdgui,
 	mdgui->event_queue[mdgui->event_queue_last] = new_event;
 }
 
-void MDGUI__add_event(MDGUI__manager_t *mdgui, bool (*new_f)(void *), void *data) {
+static void MDGUI__add_event(MDGUI__manager_t *mdgui,
+			     bool (*new_f)(void *),
+			     void *data) {
+
 	MDGUI__mutex_lock(mdgui);
 	MDGUI__add_event_raw(mdgui, new_f, data);
 	MDGUI__mutex_unlock(mdgui);
 }
 
-bool MDGUI__exec_last_event(MDGUI__manager_t *mdgui) {
+static bool MDGUI__exec_last_event(MDGUI__manager_t *mdgui) {
 
 	bool return_value = true;
 
@@ -345,29 +377,31 @@ bool MDGUI__exec_last_event(MDGUI__manager_t *mdgui) {
 	return return_value;
 }
 
-void MDGUI__mutex_lock(MDGUI__manager_t *mdgui) {
+static void MDGUI__mutex_lock(MDGUI__manager_t *mdgui) {
 
 	pthread_mutex_lock (&mdgui->mutex);
 }
 
-void MDGUI__mutex_unlock(MDGUI__manager_t *mdgui) {
+static void MDGUI__mutex_unlock(MDGUI__manager_t *mdgui) {
 
 	pthread_mutex_unlock (&mdgui->mutex);
 }
 
-void MDGUI__clear_screen() {
+static void MDGUI__clear_screen() {
 
 	clear();
 }
 
-void MDGUI__log(const char *log, MDGUI__manager_t *mdgui) {
+static void MDGUI__log(const char *log, MDGUI__manager_t *mdgui) {
 
 	MDGUI__terminal tinfo = mdgui->tinfo;
+	int i = 0;
+	FILE *f;
+	time_t t;
+	struct tm tm;
 
 	move (tinfo.lines - 1, 0);
 	clrtoeol ();
-
-	int i = 0;
 
 	while (true) {
 
@@ -382,12 +416,12 @@ void MDGUI__log(const char *log, MDGUI__manager_t *mdgui) {
 
 	#ifdef MDGUI_DEBUG
 
-		FILE *f = fopen("mdgui.log", "a");
+		f = fopen("mdgui.log", "a");
 
 		if (f == NULL) return;
 
-		time_t t = time(NULL);
-		struct tm tm = *localtime(&t);
+		t = time(NULL);
+		tm = *localtime(&t);
 
 		fprintf(f, "[%02d.%02d.%04d. %02d:%02d:%02d] : %s\n",
 			tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900,
@@ -397,10 +431,9 @@ void MDGUI__log(const char *log, MDGUI__manager_t *mdgui) {
 	#endif
 }
 
-MDGUI__terminal MDGUI__get_terminal_information() {
+static MDGUI__terminal MDGUI__get_terminal_information() {
 
 	MDGUI__terminal tinfo;
-
 	struct winsize w;
 
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
@@ -416,40 +449,45 @@ struct MDGUI__prepend_info {
 	int curr_dir_str_size;
 };
 
-void MDGUI__str_transform_prepend_dir(void *data, char *src, char **dest) {
+static void MDGUI__str_transform_prepend_dir(void *data, char *src, char **dest) {
 
 	struct MDGUI__prepend_info *dir_info = ((struct MDGUI__prepend_info *)data);
+	bool needs_slash;
+	int src_str_size, new_size, i, start, end;
 
 	if (dir_info->curr_dir[dir_info->curr_dir_str_size - 1] == 0)
 		dir_info->curr_dir_str_size--;
 
-	bool needs_slash = dir_info->curr_dir[dir_info->curr_dir_str_size - 1] != '/';
+	needs_slash = dir_info->curr_dir[dir_info->curr_dir_str_size - 1]
+		   != '/';
 
-	int src_str_size = MDGUI__get_string_size(src);
+	src_str_size = MDGUI__get_string_size(src);
 
-	int new_size = dir_info->curr_dir_str_size + src_str_size
-		     + (needs_slash ? 1 : 0);
+	new_size = dir_info->curr_dir_str_size + src_str_size
+		 + (needs_slash ? 1 : 0);
 
 	*dest = malloc(sizeof (**dest) * new_size);
 
-	for (int i = 0; i < dir_info->curr_dir_str_size; i++)
+	for (i = 0; i < dir_info->curr_dir_str_size; i++)
 		(*dest)[i] = dir_info->curr_dir[i];
 
 	if (needs_slash)
 		(*dest)[dir_info->curr_dir_str_size] = '/';
 
-	int start = needs_slash ? 1 : 0;
+	start = needs_slash ? 1 : 0;
 
-	int end = src_str_size + (needs_slash ? 1 : 0);
+	end = src_str_size + (needs_slash ? 1 : 0);
 
-	for (int i=start; i<end; i++)
+	for (i = start; i < end; i++)
 		(*dest)[dir_info->curr_dir_str_size+i] = src[i-start + 1];
 
 	return;
 }
 
-void *MDGUI__wait_for_keypress(void *data) {
+static void *MDGUI__wait_for_keypress(void *data) {
 
+	char buff[3];
+	int readn, buffread;
 	struct MDGUI__keypress_data *keypress_data
 		= (struct MDGUI__keypress_data *)data;
 
@@ -484,11 +522,11 @@ void *MDGUI__wait_for_keypress(void *data) {
 		FD_ZERO(&input_set);
 		FD_SET(STDIN_FILENO, &input_set);
 
-		int readn = select(1, &input_set, NULL, NULL, NULL);
+		readn = select(1, &input_set, NULL, NULL, NULL);
 
 		if (FD_ISSET(STDIN_FILENO, &input_set)) {
 
-			int buffread = read(STDIN_FILENO, buff, 3);
+			buffread = read(STDIN_FILENO, buff, 3);
 
 			if (!key_pressed(mdgui, buff)) break;
 		}
@@ -499,28 +537,28 @@ void *MDGUI__wait_for_keypress(void *data) {
 	return NULL;
 }
 
-void MDGUI__draw(MDGUI__manager_t *mdgui) {
+static void MDGUI__draw(MDGUI__manager_t *mdgui) {
 
-	MDGUI__draw_logo (mdgui);
-	MDGUIFB__draw (&mdgui->filebox);
-	MDGUIPB__draw (&mdgui->playlistbox);
-	MDGUIMB__draw (&mdgui->metabox);
+	MDGUI__draw_logo(mdgui);
+	MDGUIFB__draw(&mdgui->filebox);
+	MDGUIPB__draw(&mdgui->playlistbox);
+	MDGUIMB__draw(&mdgui->metabox);
 
 	return;
 }
 
-bool MDGUI__handle_metadata_event(void *data) {
+static bool MDGUI__handle_metadata_event(void *data) {
 
 	MDGUI__meta_box_t *metabox = (MDGUI__meta_box_t *)data;
 
-	MDGUIMB__redraw (metabox);
+	MDGUIMB__redraw(metabox);
 
 	return true;
 }
 
-void MD__handle_metadata(MD__metadata_t metadata, void *user_data) {
+static void MD__handle_metadata(MD__metadata_t metadata, void* user_data) {
 
-	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
+	MDGUI__manager_t* mdgui = (MDGUI__manager_t*)user_data;
 
 	MDGUI__mutex_lock(mdgui);
 	MDGUIMB__load(&mdgui->metabox, metadata);
@@ -530,16 +568,16 @@ void MD__handle_metadata(MD__metadata_t metadata, void *user_data) {
 	return;
 }
 
-bool MDGUI__redraw_playlist_event(void *data) {
+static bool MDGUI__redraw_playlist_event(void* data) {
 
-	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
+	MDGUI__manager_t* mdgui = (MDGUI__manager_t*)data;
 
 	MDGUIPB__redraw(&mdgui->playlistbox);
 
 	return true;
 }
 
-bool MDGUI__replay_event(void *user_data) {
+static bool MDGUI__replay_event(void* user_data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
@@ -549,7 +587,7 @@ bool MDGUI__replay_event(void *user_data) {
 	return true;
 }
 
-void MDGUI__play_complete (void *user_data) {
+static void MDGUI__play_complete (void* user_data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
@@ -610,7 +648,7 @@ void MDGUI__play_complete (void *user_data) {
 	return;
 }
 
-void MDGUI__handle_error(char *error, void *user_data) {
+static void MDGUI__handle_error(char *error, void *user_data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
@@ -620,13 +658,13 @@ void MDGUI__handle_error(char *error, void *user_data) {
 }
 
 static void MDGUI__started_playing(void *user_data) {
+
+	char buff[PATH_MAX + 10];
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
 	MDGUI__mutex_lock(mdgui);
 	mdgui->current_play_state = MDGUI__PLAYING;
 	MDGUIMB__start_countdown(&mdgui->metabox);
-
-	char buff[PATH_MAX + 10];
 
 	snprintf(buff, PATH_MAX + 10, "Playing: %s",
 		 MDGUIPB__get_curr_filename(&mdgui->playlistbox));
@@ -641,15 +679,18 @@ static void MDGUI__buff_underrun(void *user_data) {
 	return;
 }
 
-static void *MDGUI__play(void *data) {
+static void *MDGUI__play(void* data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
+	char* filename_temp;
+	char* filename;
+	int filename_size, i;
 
 	MDGUI__mutex_lock(mdgui);
 	MD__file_t *current_file = malloc(sizeof(*current_file));
 	MDGUI__log("Query filename.", mdgui);
 
-	char *filename_temp = MDGUIPB__get_curr_filename(&mdgui->playlistbox);
+	filename_temp = MDGUIPB__get_curr_filename(&mdgui->playlistbox);
 
 	if (!filename_temp) {
 		MDGUI__log("No filename.", mdgui);
@@ -661,10 +702,10 @@ static void *MDGUI__play(void *data) {
 
 	MDGUI__log("Copying filename.", mdgui);
 
-	int filename_size = MDGUI__get_string_size(filename_temp) + 1;
-	char *filename = malloc(filename_size * sizeof(*filename));
+	filename_size = MDGUI__get_string_size(filename_temp) + 1;
+	filename = malloc(filename_size * sizeof(*filename));
 
-	for (int i = 0; i < filename_size; i++)
+	for (i = 0; i < filename_size; i++)
 		filename[i] = filename_temp[i];
 
 	MDGUI__log("Got filename.", mdgui);
@@ -1168,15 +1209,15 @@ static bool MDGUI__toggle_shuffle(void *data) {
 static bool MDGUI__append_event(void *data) {
 
 	struct append_data_t* adt = (struct append_data_t*)data;
+	int i, start, cnum;
 
 	if(adt->single_file) {
 		MDGUI__append_single(adt->mdgui,
 				     adt->mdgui->filebox.listbox.num_selected);
 	}
 	else {
-		int i;
-		int start = adt->mdgui->filebox.listbox.num_selected;
-		int cnum = adt->mdgui->filebox.listbox.str_array.cnum;
+		start = adt->mdgui->filebox.listbox.num_selected;
+		cnum = adt->mdgui->filebox.listbox.str_array.cnum;
 
 		for (i = start < 0 ? 0 : start; i < cnum; i++) {
 			if (adt->mdgui->filebox.listbox.str_array.carray[i][0] == 'd')
@@ -1191,10 +1232,9 @@ static bool MDGUI__append_event(void *data) {
 	return true;
 }
 
-bool MDGUI__delete_event(void *data) {
+static bool MDGUI__delete_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
-
 	bool will_play_next = false;
 
 	if (mdgui->playlistbox.num_playing
@@ -1224,7 +1264,7 @@ bool MDGUI__delete_event(void *data) {
 	return true;
 }
 
-bool key_pressed(MDGUI__manager_t *mdgui, char key[3]) {
+static bool key_pressed(MDGUI__manager_t *mdgui, char key[3]) {
 
 	if (key[0] == 27 && key[1] == 0 && key[2] == 0) {
 		// ESCAPE
@@ -1310,7 +1350,7 @@ bool key_pressed(MDGUI__manager_t *mdgui, char key[3]) {
 	return true;
 }
 
-void MDGUI__update_size(MDGUI__manager_t *mdgui) {
+static void MDGUI__update_size(MDGUI__manager_t *mdgui) {
 
 	int box_width = MDGUI__get_box_width(mdgui);
 	int box_height = MDGUI__get_box_height(mdgui);
@@ -1328,7 +1368,7 @@ void MDGUI__update_size(MDGUI__manager_t *mdgui) {
 	mdgui->playlistbox.listbox.box.width = box_width;
 }
 
-bool MDGUI__terminal_change_event(void *data) {
+static bool MDGUI__terminal_change_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -1357,7 +1397,7 @@ bool MDGUI__terminal_change_event(void *data) {
 
 }
 
-void *terminal_change (void *data) {
+static void *terminal_change (void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -1390,7 +1430,7 @@ void *terminal_change (void *data) {
 	return NULL;
 }
 
-void MDGUI__start_playing(MDGUI__manager_t *mdgui) {
+static void MDGUI__start_playing(MDGUI__manager_t *mdgui) {
 
 	if (mdgui->playlistbox.num_playing < 0
 	 || mdgui->playlistbox.num_playing >= mdgui->playlistbox.filenames.cnum) {
@@ -1415,7 +1455,7 @@ void MDGUI__start_playing(MDGUI__manager_t *mdgui) {
 	return;
 }
 
-void MDGUI__complete(MDGUI__manager_t *mdgui) {
+static void MDGUI__complete(MDGUI__manager_t *mdgui) {
 
 	MDGUI__mutex_lock(mdgui);
 
@@ -1465,22 +1505,24 @@ void MDGUIMB__transform(MD__buffer_chunk_t *curr_chunk,
 			void *user_data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
-
 	static float complex buffer[4096];
 	static float complex output[4096];
-
 	int count = curr_chunk->size/((bps/8)*channels);
+	int i, j, b, c, new_count;
+	float mono_mix, coeff, new_j, secs;
+	float* new_sample;
+	short data;
 
-	for (int i=0; i<count; i++) {
+	for (i = 0; i < count; i++) {
 
-		float mono_mix = 0;
+		mono_mix = 0;
 
-		for (int c=0; c<channels; c++) {
+		for (c=0; c<channels; c++) {
 
 			// this will depend on bps...
-			short data = 0;
+			data = 0;
 
-			for (int b=0; b<bps/8; b++)
+			for (b=0; b<bps/8; b++)
 
 				data = data + ((short)(curr_chunk
 				     ->chunk[i * channels * (bps/8)
@@ -1492,28 +1534,28 @@ void MDGUIMB__transform(MD__buffer_chunk_t *curr_chunk,
 		buffer[i] = 0*I + mono_mix;
 	}
 
-	int new_count = count / 2;
+	new_count = count / 2;
 
-	float coeff = 100000 / new_count;
+	coeff = 100000 / new_count;
 
-	for (int i=0; i<2; i++) {
+	for (i = 0; i < 2; i++) {
 
 		MDFFT__apply_hanning(&(buffer[new_count*i]), new_count);
 		MDFFT__iterative(false, &(buffer[new_count*i]), output, new_count);
 
-		float *new_sample = malloc(sizeof(*new_sample) * 8);
+		new_sample = malloc(sizeof(*new_sample) * 8);
 
 		MDFFT__to_amp_surj(output, new_count / 2, new_sample, 8);
 
-		for (int j = 0; j < 8; j++) {
+		for (j = 0; j < 8; j++) {
 
-			float new_j = log10f(coeff * new_sample[j]);
+			new_j = log10f(coeff * new_sample[j]);
 			// try 0.5 + (cos(2 * 3.14 * (new_j / 4) + 3.14)/4)
 			new_sample[j] = new_j < 0 ? 0 : new_j / 4;
 		};
 
-		float secs = ((((float)curr_chunk->order) + i * 1/2)
-			   * curr_chunk->size / (bps * channels / 8)) / sample_rate;
+		secs = ((((float)curr_chunk->order) + i * 1/2)
+		     * curr_chunk->size / (bps * channels / 8)) / sample_rate;
 
 		// atomicity will be ensured by the thread calling buffer_transform
 		MDGUIMB__fft_queue(&mdgui->metabox, new_sample, secs);
