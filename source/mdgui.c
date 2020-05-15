@@ -9,25 +9,35 @@
 
 // TODO: this needs serious review & refactoring, perhaps complete v2.0
 
-void	*MDGUI__wait_for_keypress	(void *data);
-bool	key_pressed			(MDGUI__manager_t *mdgui,
-					 char key[3]);
-void	*terminal_change		(void *data);
-void	MDGUI__draw_logo		(MDGUI__manager_t *mdgui);
-void	MDGUI__start_playing		(MDGUI__manager_t *mdgui);
-bool	MDGUI__stop_all_playing		(MDGUI__manager_t *mdgui);
-void	MDGUI__complete			(MDGUI__manager_t *mdgui);
+static void	*MDGUI__wait_for_keypress	(void *data);
+static bool	key_pressed			(MDGUI__manager_t *mdgui,
+						 char key[3]);
+static void	*terminal_change		(void *data);
+static void	MDGUI__draw_logo		(MDGUI__manager_t *mdgui);
+static void	MDGUI__start_playing		(MDGUI__manager_t *mdgui);
+static bool	MDGUI__stop_all_playing		(MDGUI__manager_t *mdgui);
+static void	MDGUI__complete			(MDGUI__manager_t *mdgui);
+static void	MDGUIMB__transform		(MD__buffer_chunk_t *curr_chunk,
+						 unsigned int sample_rate,
+						 unsigned int channels,
+						 unsigned int bps, void *user_data);
+static void	MDGUI__add_event		(MDGUI__manager_t *mdgui,
+						 bool (*new_f)(void *),
+						 void *data);
+static bool	MDGUI__exec_last_event		(MDGUI__manager_t *mdgui);
+static void	MDGUI__init_event_queue		(MDGUI__manager_t *mdgui);
 
-void	MDGUIMB__transform		(MD__buffer_chunk_t *curr_chunk,
-					 unsigned int sample_rate,
-					 unsigned int channels,
-					 unsigned int bps, void *user_data);
+int MDGUI__get_next_default(int curr, int size) {
 
-void	MDGUI__add_event		(MDGUI__manager_t *mdgui,
-					 bool (*new_f)(void *),
-					 void *data);
-bool	MDGUI__exec_last_event		(MDGUI__manager_t *mdgui);
-void	MDGUI__init_event_queue		(MDGUI__manager_t *mdgui);
+	return ++curr;
+}
+
+int MDGUI__get_next_random(int curr, int size) {
+
+	srand(time(0));
+
+	return rand() % size;
+}
 
 int MDGUI__get_box_width(MDGUI__manager_t *mdgui) {
 
@@ -82,6 +92,8 @@ bool MDGUI__init(MDGUI__manager_t *mdgui) {
 
 	MDGUI__play_state current_play_state = MDGUI__NOT_PLAYING;
 
+	mdgui->get_next = MDGUI__get_next_default;
+
 	MDGUI__init_event_queue(mdgui);
 
 	return true;
@@ -94,27 +106,24 @@ struct MDGUI__keypress_data {
 };
 
 bool MDGUI__start(MDGUI__manager_t *mdgui) {
+	struct termios orig_term_attr;
+	struct termios new_term_attr;
+	char chain[3];
 
 	MDAL__initialize(4096, 4, 4);
 
 	clear();
-
 	curs_set(0);
 
-	struct termios orig_term_attr;
-	struct termios new_term_attr;
-
-	char chain[3];
-
-	tcgetattr(fileno (stdin), &orig_term_attr);
-	memcpy(&new_term_attr, &orig_term_attr, sizeof (struct termios));
+	tcgetattr(fileno(stdin), &orig_term_attr);
+	memcpy(&new_term_attr, &orig_term_attr, sizeof(struct termios));
 	new_term_attr.c_lflag &= ~(ICANON | ECHO);
-	tcsetattr(fileno (stdin), TCSANOW, &new_term_attr);
+	tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
 
 	MDGUI__draw(mdgui);
-
 	MDGUI__log("Use arrow keys to move, "
-		   "ENTER to select and ESC to deselect/exit.", mdgui);
+		   "ENTER to select and ESC "
+		   "to deselect/exit.", mdgui);
 
 	if (pthread_create(&mdgui->terminal_thread, NULL, terminal_change, mdgui)) {
 
@@ -146,7 +155,6 @@ bool MDGUI__start(MDGUI__manager_t *mdgui) {
 		MDGUI__mutex_lock(mdgui);
 
 		if (!MDGUI__exec_last_event(mdgui)) {
-
 			MDGUI__mutex_unlock(mdgui);
 
 			break;
@@ -176,22 +184,17 @@ bool MDGUI__start(MDGUI__manager_t *mdgui) {
 
 	if (mdgui->curr_playing)
 		MD__stop(mdgui->curr_playing);
-
 	else {
-
 		MDGUI__mutex_lock(mdgui);
 		mdgui->current_play_state = MDGUI__PROGRAM_EXIT;
 		MDGUI__mutex_unlock(mdgui);
 	}
 
 	pthread_join(mdgui->keyboard_input_thread, NULL);
-
 	pthread_join(mdgui->terminal_thread, NULL);
 
 	tcsetattr(fileno (stdin), TCSANOW, &orig_term_attr);
-
 	curs_set(1);
-
 	clear();
 
 	return true;
@@ -570,7 +573,9 @@ void MDGUI__play_complete (void *user_data) {
 
 	if ((mdgui->playlistbox.num_playing < mdgui->playlistbox.filenames.cnum)
 	 && !mdgui->stop_all_signal) {
-		mdgui->playlistbox.num_playing++;
+		mdgui->playlistbox.num_playing = mdgui->get_next(
+				mdgui->playlistbox.num_playing,
+				mdgui->playlistbox.listbox.str_array.cnum);
 		MDGUI__log ("Playing next.", mdgui);
 	}
 	else if (mdgui->playlistbox.num_playing >= mdgui->playlistbox.filenames.cnum
@@ -614,8 +619,7 @@ void MDGUI__handle_error(char *error, void *user_data) {
 	return;
 }
 
-void MDGUI__started_playing(void *user_data) {
-
+static void MDGUI__started_playing(void *user_data) {
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)user_data;
 
 	MDGUI__mutex_lock(mdgui);
@@ -632,12 +636,12 @@ void MDGUI__started_playing(void *user_data) {
 	return;
 }
 
-void MDGUI__buff_underrun(void *user_data) {
+static void MDGUI__buff_underrun(void *user_data) {
 
 	return;
 }
 
-void *MDGUI__play(void *data) {
+static void *MDGUI__play(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -707,7 +711,7 @@ void *MDGUI__play(void *data) {
 	return NULL;
 }
 
-bool MDGUI__escape_pressed_event(void *data) {
+static bool MDGUI__escape_pressed_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -756,12 +760,12 @@ bool MDGUI__escape_pressed_event(void *data) {
 	return true;
 }
 
-bool MDGUI__exit_event(void *data) {
+static bool MDGUI__exit_event(void *data) {
 
 	return false;
 }
 
-bool MDGUI__return_event(void *data) {
+static bool MDGUI__return_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -839,7 +843,10 @@ bool MDGUI__return_event(void *data) {
 
 			free(pr_info.curr_dir);
 
-			mdgui->playlistbox.num_playing = 0;
+			mdgui->playlistbox.num_playing = -1;
+			mdgui->playlistbox.num_playing = mdgui->get_next(
+					mdgui->playlistbox.num_playing,
+					mdgui->playlistbox.listbox.str_array.cnum);
 			mdgui->playlistbox.listbox.num_selected = -1;
 
 			MDGUIPB__redraw(&mdgui->playlistbox);
@@ -876,7 +883,7 @@ bool MDGUI__return_event(void *data) {
 
 		if (mdgui->current_play_state == MDGUI__NOT_PLAYING) {
 
-			MDGUI__start_playing (mdgui);
+			MDGUI__start_playing(mdgui);
 			break;
 		}
 
@@ -890,7 +897,7 @@ bool MDGUI__return_event(void *data) {
 	return true;
 }
 
-bool MDGUI__down_event(void *data) {
+static bool MDGUI__down_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -935,7 +942,7 @@ bool MDGUI__down_event(void *data) {
 	return true;
 }
 
-bool MDGUI__up_event(void *data) {
+static bool MDGUI__up_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -976,7 +983,7 @@ bool MDGUI__up_event(void *data) {
 	return true;
 }
 
-bool MDGUI__left_event(void *data) {
+static bool MDGUI__left_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -1028,7 +1035,7 @@ bool MDGUI__left_event(void *data) {
 	return true;
 }
 
-bool MDGUI__right_event(void *data) {
+static bool MDGUI__right_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -1076,7 +1083,7 @@ bool MDGUI__right_event(void *data) {
 	return true;
 }
 
-bool MDGUI__pause_event(void *data) {
+static bool MDGUI__pause_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -1097,7 +1104,7 @@ bool MDGUI__pause_event(void *data) {
 	return true;
 }
 
-bool MDGUI__stop_event(void *data) {
+static bool MDGUI__stop_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
 
@@ -1121,6 +1128,7 @@ struct append_data_t {
 };
 
 static void MDGUI__append_single(MDGUI__manager_t* mdgui, int to_append) {
+
 	struct MDGUI__prepend_info pr_info;
 	char *fname_transformed;
 
@@ -1137,6 +1145,24 @@ static void MDGUI__append_single(MDGUI__manager_t* mdgui, int to_append) {
 	MDGUIPB__append(&mdgui->playlistbox, fname_transformed);
 
 	MDGUIPB__redraw(&mdgui->playlistbox);
+}
+
+static bool MDGUI__toggle_shuffle(void *data) {
+
+	static bool shuffle = false;
+
+	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
+
+	shuffle = !shuffle;
+
+	MDGUI__log(shuffle ? "Shuffle mode ON."
+			   : "Shuffle mode OFF", mdgui);
+
+	mdgui->get_next = shuffle
+			? MDGUI__get_next_random
+			: MDGUI__get_next_default;
+
+	return true;
 }
 
 static bool MDGUI__append_event(void *data) {
@@ -1274,6 +1300,10 @@ bool key_pressed(MDGUI__manager_t *mdgui, char key[3]) {
 		default:
 			break;
 		}
+	}
+	else if ((key[0] == 'r') && key[1] == 0 && key[2] == 0) {
+
+		MDGUI__add_event(mdgui, MDGUI__toggle_shuffle, mdgui);
 	}
 
 

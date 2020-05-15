@@ -20,6 +20,7 @@ Use arrow keys to navigate, return key to select and escape key to exit (either 
 | `a` |  append single  |
 | `A` | append multiple |
 | `d` |     delete      |
+| `r` | toggle shuffle  |
 
 ## Demo
 
