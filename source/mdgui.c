@@ -7,6 +7,8 @@
 #include <melodeer/mdmpg123.h>
 #include <melodeer/mdutils.h>
 
+static float global_volume = 1.0;
+
 // TODO: this needs serious review & refactoring, perhaps complete v2.0
 
 static void	*MDGUI__wait_for_keypress	(void*);
@@ -1145,6 +1147,26 @@ static bool MDGUI__pause_event(void *data) {
 	return true;
 }
 
+static bool MDGUI__volume_up_event(void* data) {
+
+	if (global_volume >= 1.0)
+		global_volume = 1.0;
+	else
+		global_volume += 0.1;
+
+	return true;
+}
+
+static bool MDGUI__volume_down_event(void* data) {
+
+	if (global_volume <= 0.0)
+		global_volume = 0.0;
+	else
+		global_volume -= 0.1;
+
+	return true;
+}
+
 static bool MDGUI__stop_event(void *data) {
 
 	MDGUI__manager_t *mdgui = (MDGUI__manager_t *)data;
@@ -1301,6 +1323,14 @@ static bool key_pressed(MDGUI__manager_t *mdgui, char key[3]) {
 	else if ((key[0] == 'p') && key[1] == 0 && key[2] == 0) {
 		// PAUSE
 		MDGUI__add_event(mdgui, MDGUI__pause_event, mdgui);
+	}
+	else if ((key[0] == '+') && key[1] == 0 && key[2] == 0) {
+		// VOLUME UP
+		MDGUI__add_event(mdgui, MDGUI__volume_up_event, mdgui);
+	}
+	else if ((key[0] == '-') && key[1] == 0 && key[2] == 0) {
+		// VOLUME DOWN
+		MDGUI__add_event(mdgui, MDGUI__volume_down_event, mdgui);
 	}
 	else if ((key[0] == 's') && key[1] == 0 && key[2] == 0) {
 		// STOP
@@ -1517,18 +1547,26 @@ void MDGUIMB__transform(MD__buffer_chunk_t *curr_chunk,
 
 		mono_mix = 0;
 
-		for (c=0; c<channels; c++) {
+		for (c = 0; c < channels; c++) {
 
 			// this will depend on bps...
 			data = 0;
 
-			for (b=0; b<bps/8; b++)
-
+			for (b = 0; b < bps / 8; b++) {
 				data = data + ((short)(curr_chunk
 				     ->chunk[i * channels * (bps/8)
 				     	     + (c*channels) + b]) << (8*b));
+			}
 
 			mono_mix += (((float)data) / SHRT_MAX)/channels;
+
+			data = data * global_volume;
+
+		        for (b = 0; b < bps / 8; b++) {
+                		curr_chunk->chunk[i * channels * (bps / 8)
+					+ (c * channels) + b] = data >> 8 * b;
+			}
+
 		}
 
 		buffer[i] = 0*I + mono_mix;
